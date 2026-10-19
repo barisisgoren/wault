@@ -1,0 +1,28 @@
+<resources>
+    <string name="app_name">Wault</string>
+    <string name="tile_label">Wault NFC</string>
+
+    <!-- Durum Rozetleri (Status Pills) -->
+    <string name="status_shizuku_ready">Shizuku Aktif • Anında Geçiş</string>
+    <string name="status_adb_ready">ADB Aktif • Anında Geçiş</string>
+    <string name="status_standard_mode">Standart Mod • İzin Gerekli</string>
+
+    <!-- Bölüm Başlıkları (Sections) -->
+    <string name="section_payment_cards">Temassız Ödeme Kartları</string>
+    <string name="section_loyalty_cards">Üyelik ve Geçiş Kartları</string>
+    <string name="section_hidden_banks">Gizlenen Bankalar</string>
+
+    <!-- Eylemler (Actions) -->
+    <string name="action_edit_card">Kartı Düzenle</string>
+    <string name="action_edit">Düzenle</string>
+    <string name="action_pick_image">Görsel Seç</string>
+    <string name="action_set_default">Varsayılan Yap</string>
+    <string name="action_temp_activate_60s">60sn Geçici Aktif Et</string>
+    <string name="action_revert_to_primary_60s">60 saniye sonra Ana Karta dön</string>
+    <string name="action_hide_card">Kartı Gizle</string>
+    <string name="action_add_new_card">Yeni Kart Ekle</string>
+    <string name="action_scan_barcode_gallery">Galeriden Barkod Tara</string>
+    <string name="action_scan_screenshot_gallery">Galeriden Görsel/Ekran Görüntüsü Tara</string>
+    <string name="badge_nfc_ready">NFC Ödemeye Hazır</string>
+    <string name="badge_primary_card">Ana Kart</string>
+</resources>

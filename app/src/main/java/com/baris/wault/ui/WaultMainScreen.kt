@@ -1,0 +1,847 @@
+package com.baris.wault.ui
+
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AccountBalance
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.QrCodeScanner
+import androidx.compose.material.icons.rounded.Restore
+import androidx.compose.material.icons.rounded.Security
+import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.baris.wault.data.nfc.BankPaymentApp
+import com.baris.wault.data.nfc.SilentSwitchCapability
+import com.baris.wault.data.vault.LoyaltyCardEntity
+import com.baris.wault.data.vault.WaultBarcodeFormat
+import com.baris.wault.ui.components.AddCardBottomSheet
+import com.baris.wault.ui.components.EditBankCardSheet
+import com.baris.wault.ui.components.FullscreenBarcodeDialog
+import com.baris.wault.ui.components.PassStackSection
+import com.baris.wault.ui.components.PaymentStackSection
+import com.baris.wault.ui.components.WaultBottomNav
+import com.baris.wault.ui.components.WaultTab
+import com.baris.wault.ui.components.WaultTopBar
+import com.baris.wault.ui.theme.WaultAmoledBlack
+import com.baris.wault.ui.theme.WaultGlassBorderDark
+import com.baris.wault.ui.theme.WaultPrimaryMint
+import com.baris.wault.ui.theme.WaultStatusAmber
+import com.baris.wault.ui.theme.WaultStatusGreen
+import com.baris.wault.ui.theme.WaultSurfaceContainerDark
+import com.baris.wault.ui.theme.WaultSurfaceDark
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WaultMainScreen(
+    uiState: WaultUiState,
+    snackbarHostState: SnackbarHostState,
+    onSelectBank: (BankPaymentApp) -> Unit,
+    onActivateTemp60s: (BankPaymentApp) -> Unit,
+    onReorderBanks: (List<BankPaymentApp>) -> Unit,
+    onRevertToPrimaryNow: () -> Unit,
+    onCancelTempTimer: () -> Unit,
+    onRefreshBanks: () -> Unit,
+    onOpenEditBankSheet: (BankPaymentApp) -> Unit,
+    onCloseEditBankSheet: () -> Unit,
+    onSaveBankOverride: (
+        bank: BankPaymentApp,
+        customTitle: String?,
+        cardNumberSuffix: String?,
+        customColorHex: Long?,
+        customImagePath: String?,
+        isPrimary: Boolean,
+        isHidden: Boolean
+    ) -> Unit,
+    onSetBankHidden: (BankPaymentApp, Boolean) -> Unit,
+    onOpenHiddenBanksSheet: () -> Unit,
+    onCloseHiddenBanksSheet: () -> Unit,
+    onShizukuPillClick: () -> Unit,
+    onRequestShizukuPermission: () -> Unit,
+    onDismissShizukuDialog: () -> Unit,
+    onOpenAddPassSheet: (LoyaltyCardEntity?) -> Unit,
+    onCloseAddPassSheet: () -> Unit,
+    onSavePass: (
+        existingCard: LoyaltyCardEntity?,
+        title: String,
+        subtitle: String,
+        notes: String?,
+        barcodeValue: String,
+        barcodeFormat: WaultBarcodeFormat,
+        cardColorHex: Long,
+        customImagePath: String?
+    ) -> Unit,
+    onDeletePass: (LoyaltyCardEntity) -> Unit,
+    onMovePassToTop: (LoyaltyCardEntity) -> Unit,
+    onReorderPasses: (List<LoyaltyCardEntity>) -> Unit,
+    onOpenFullscreenPass: (LoyaltyCardEntity) -> Unit,
+    onCloseFullscreenPass: () -> Unit
+) {
+    var selectedTab by rememberSaveable { mutableStateOf(WaultTab.PAYMENT) }
+    var isUnifiedActionSheetVisible by rememberSaveable { mutableStateOf(false) }
+
+    Scaffold(
+        containerColor = WaultAmoledBlack,
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        topBar = {
+            WaultTopBar(
+                capability = uiState.shizukuCapability,
+                onStatusPillClick = onShizukuPillClick
+            )
+        },
+        bottomBar = {
+            WaultBottomNav(
+                selectedTab = selectedTab,
+                onSelectTab = { selectedTab = it }
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    if (selectedTab == WaultTab.PASSES) {
+                        onOpenAddPassSheet(null)
+                    } else {
+                        isUnifiedActionSheetVisible = true
+                    }
+                },
+                containerColor = WaultPrimaryMint,
+                contentColor = Color(0xFF03140A),
+                shape = RoundedCornerShape(20.dp),
+                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 10.dp),
+                modifier = Modifier.size(58.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Add,
+                    contentDescription = "Yeni Ekle",
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = innerPadding.calculateTopPadding())
+        ) {
+            // Compact 60-Second Temporary NFC Switch Bar when active
+            val showCountdown = uiState.tempSwitchSecondsRemaining != null
+            val showQuickTrigger = !showCountdown &&
+                uiState.primaryBank != null &&
+                uiState.activeBank != null &&
+                uiState.primaryBank.componentName != uiState.activeBank.componentName
+
+            AnimatedVisibility(
+                visible = showCountdown || showQuickTrigger,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                TemporaryNfcSwitchBar(
+                    primaryBank = uiState.primaryBank,
+                    secondsRemaining = uiState.tempSwitchSecondsRemaining,
+                    onStart60sCountdown = {
+                        uiState.activeBank?.let(onActivateTemp60s)
+                    },
+                    onRevertNow = onRevertToPrimaryNow,
+                    onCancelTimer = onCancelTempTimer,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
+                )
+            }
+
+            // Tab Content Area: Tab 1 (Temassız Ödeme) vs Tab 2 (Geçiş Kartları)
+            AnimatedContent(
+                targetState = selectedTab,
+                transitionSpec = {
+                    fadeIn(tween(220)) togetherWith fadeOut(tween(160))
+                },
+                label = "WaultTabTransition",
+                modifier = Modifier.weight(1f)
+            ) { tab ->
+                when (tab) {
+                    WaultTab.PAYMENT -> {
+                        PaymentStackSection(
+                            banks = uiState.installedBanks,
+                            hiddenCount = uiState.hiddenBanks.size,
+                            activeBank = uiState.activeBank,
+                            isScanning = uiState.isScanningBanks,
+                            onSelectBank = onSelectBank,
+                            onEditBank = onOpenEditBankSheet,
+                            onActivateTemp60s = onActivateTemp60s,
+                            onReorderBanks = onReorderBanks,
+                            onRefreshBanks = onRefreshBanks,
+                            onOpenHiddenBanks = onOpenHiddenBanksSheet,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+
+                    WaultTab.PASSES -> {
+                        PassStackSection(
+                            passes = uiState.loyaltyCards,
+                            onPassClick = onOpenFullscreenPass,
+                            onMovePassToTop = onMovePassToTop,
+                            onReorderPasses = onReorderPasses,
+                            onPassEdit = { card -> onOpenAddPassSheet(card) },
+                            onPassDelete = onDeletePass,
+                            onAddPassClick = { onOpenAddPassSheet(null) },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    // Unified Action Bottom Sheet triggered by '+' FAB
+    if (isUnifiedActionSheetVisible) {
+        UnifiedQuickActionSheet(
+            banks = uiState.installedBanks,
+            hiddenCount = uiState.hiddenBanks.size,
+            onDismiss = { isUnifiedActionSheetVisible = false },
+            onAddLoyaltyPass = {
+                isUnifiedActionSheetVisible = false
+                selectedTab = WaultTab.PASSES
+                onOpenAddPassSheet(null)
+            },
+            onCustomizeBank = { bank ->
+                isUnifiedActionSheetVisible = false
+                onOpenEditBankSheet(bank)
+            },
+            onOpenHiddenBanks = {
+                isUnifiedActionSheetVisible = false
+                onOpenHiddenBanksSheet()
+            }
+        )
+    }
+
+    // Full-Screen Optical Pass Modal
+    uiState.selectedPassForFullscreen?.let { activePass ->
+        FullscreenBarcodeDialog(
+            card = activePass,
+            onDismiss = onCloseFullscreenPass,
+            onEdit = { cardToEdit -> onOpenAddPassSheet(cardToEdit) },
+            onDelete = { cardToDelete -> onDeletePass(cardToDelete) }
+        )
+    }
+
+    // Add / Edit Loyalty Pass Bottom Sheet
+    if (uiState.isAddPassSheetVisible) {
+        AddCardBottomSheet(
+            existingCard = uiState.cardBeingEdited,
+            onDismiss = onCloseAddPassSheet,
+            onSave = onSavePass
+        )
+    }
+
+    // Edit Bank Card Customization Bottom Sheet
+    uiState.bankBeingEdited?.let { bankToEdit ->
+        EditBankCardSheet(
+            bank = bankToEdit,
+            isActive = uiState.activeBank?.componentName == bankToEdit.componentName,
+            onDismiss = onCloseEditBankSheet,
+            onSetDefaultNow = onSelectBank,
+            onActivateTemp60s = onActivateTemp60s,
+            onSaveOverride = onSaveBankOverride
+        )
+    }
+
+    // Hidden Banks Manager Sheet
+    if (uiState.isHiddenBanksSheetVisible) {
+        HiddenBanksBottomSheet(
+            hiddenBanks = uiState.hiddenBanks,
+            onRestoreBank = { bank -> onSetBankHidden(bank, false) },
+            onDismiss = onCloseHiddenBanksSheet
+        )
+    }
+
+    // Shizuku Status Dialog
+    if (uiState.isShizukuDialogVisible) {
+        ShizukuStatusDialog(
+            capability = uiState.shizukuCapability,
+            onRequestPermission = onRequestShizukuPermission,
+            onDismiss = onDismissShizukuDialog
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun UnifiedQuickActionSheet(
+    banks: List<BankPaymentApp>,
+    hiddenCount: Int,
+    onDismiss: () -> Unit,
+    onAddLoyaltyPass: () -> Unit,
+    onCustomizeBank: (BankPaymentApp) -> Unit,
+    onOpenHiddenBanks: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = WaultSurfaceDark
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .navigationBarsPadding()
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Hızlı İşlemler",
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            )
+
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = WaultPrimaryMint.copy(alpha = 0.14f),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    WaultPrimaryMint.copy(alpha = 0.45f)
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .clickable(onClick = onAddLoyaltyPass)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Rounded.QrCodeScanner,
+                            contentDescription = null,
+                            tint = WaultPrimaryMint,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column {
+                            Text(
+                                text = "Yeni Geçiş Kartı Ekle",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                            Text(
+                                text = "Kamera, Galeri veya Manuel Barkod",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = Color(0xFF94A3B8)
+                                )
+                            )
+                        }
+                    }
+
+                    Icon(
+                        imageVector = Icons.Rounded.Add,
+                        contentDescription = null,
+                        tint = WaultPrimaryMint
+                    )
+                }
+            }
+
+            if (banks.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Banka Kartlarını Özelleştir",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        color = Color(0xFF94A3B8)
+                    )
+                )
+
+                banks.forEach { bank ->
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = WaultSurfaceContainerDark,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, WaultGlassBorderDark),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable { onCustomizeBank(bank) }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(9.dp),
+                                    color = Color.White.copy(alpha = 0.12f),
+                                    modifier = Modifier.size(34.dp)
+                                ) {
+                                    if (bank.iconBitmap != null) {
+                                        Image(
+                                            bitmap = bank.iconBitmap,
+                                            contentDescription = bank.displayTitle,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.AccountBalance,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = bank.displayTitle,
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        color = Color.White,
+                                        fontWeight = FontWeight.SemiBold
+                                    ),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            Icon(
+                                imageVector = Icons.Rounded.Edit,
+                                contentDescription = "Kartı Düzenle",
+                                tint = Color(0xFF94A3B8),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (hiddenCount > 0) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = WaultSurfaceContainerDark,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, WaultGlassBorderDark),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable(onClick = onOpenHiddenBanks)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Rounded.VisibilityOff,
+                                contentDescription = null,
+                                tint = Color(0xFF94A3B8),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "Gizlenen Bankalar ($hiddenCount)",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            )
+                        }
+                        Text(
+                            text = "Göster",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                color = WaultPrimaryMint
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TemporaryNfcSwitchBar(
+    primaryBank: BankPaymentApp?,
+    secondsRemaining: Int?,
+    onStart60sCountdown: () -> Unit,
+    onRevertNow: () -> Unit,
+    onCancelTimer: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = WaultSurfaceContainerDark,
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = WaultPrimaryMint.copy(alpha = 0.45f)
+        ),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+            if (secondsRemaining != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Timer,
+                            contentDescription = null,
+                            tint = WaultPrimaryMint,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Ana Karta dönüş: ${secondsRemaining}sn",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        TextButton(onClick = onRevertNow) {
+                            Text("Şimdi Dön", fontWeight = FontWeight.Bold)
+                        }
+                        TextButton(onClick = onCancelTimer) {
+                            Text("İptal")
+                        }
+                    }
+                }
+
+                LinearProgressIndicator(
+                    progress = { (secondsRemaining / 60f).coerceIn(0f, 1f) },
+                    color = WaultPrimaryMint,
+                    trackColor = Color.White.copy(alpha = 0.1f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(4.dp)
+                        .clip(CircleShape)
+                )
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Timer,
+                            contentDescription = null,
+                            tint = WaultPrimaryMint,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "60sn sonra ${primaryBank?.displayTitle ?: "Ana Kart"}'a dön",
+                            style = MaterialTheme.typography.labelLarge.copy(color = Color.White),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    TextButton(onClick = onStart60sCountdown) {
+                        Text("Başlat", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HiddenBanksBottomSheet(
+    hiddenBanks: List<BankPaymentApp>,
+    onRestoreBank: (BankPaymentApp) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = WaultSurfaceDark
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .navigationBarsPadding()
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Gizlenen Bankalar",
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            )
+
+            hiddenBanks.forEach { bank ->
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = WaultSurfaceContainerDark,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, WaultGlassBorderDark),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color.White.copy(alpha = 0.12f),
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                if (bank.iconBitmap != null) {
+                                    Image(
+                                        bitmap = bank.iconBitmap,
+                                        contentDescription = bank.displayTitle,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.AccountBalance,
+                                            contentDescription = null,
+                                            tint = Color.White
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = bank.displayTitle,
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White
+                                ),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        FilledTonalButton(
+                            onClick = { onRestoreBank(bank) },
+                            shape = CircleShape
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Restore,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Göster")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShizukuStatusDialog(
+    capability: SilentSwitchCapability,
+    onRequestPermission: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val adbCommand = "adb shell pm grant ${context.packageName} android.permission.WRITE_SECURE_SETTINGS"
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = WaultSurfaceDark,
+        icon = {
+            Icon(
+                imageVector = if (capability.isSilentReady) Icons.Rounded.Bolt else Icons.Rounded.Security,
+                contentDescription = null,
+                tint = if (capability.isSilentReady) WaultStatusGreen else WaultStatusAmber
+            )
+        },
+        title = {
+            Text(
+                text = capability.detailTitle,
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = capability.detailMessage,
+                    style = MaterialTheme.typography.bodyMedium.copy(color = Color(0xFFCBD5E1))
+                )
+
+                if (!capability.isSilentReady) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = WaultSurfaceContainerDark,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, WaultGlassBorderDark, RoundedCornerShape(12.dp))
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "ADB Komutu",
+                                    style = MaterialTheme.typography.labelLarge.copy(color = Color.White)
+                                )
+                                IconButton(
+                                    onClick = {
+                                        val clipboard = context.getSystemService(
+                                            Context.CLIPBOARD_SERVICE
+                                        ) as ClipboardManager
+                                        clipboard.setPrimaryClip(
+                                            ClipData.newPlainText("ADB Komutu", adbCommand)
+                                        )
+                                        Toast.makeText(
+                                            context,
+                                            "ADB komutu kopyalandı",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.ContentCopy,
+                                        contentDescription = "ADB Komutunu Kopyala",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = adbCommand,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color(0xFF94A3B8)
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            if (capability == SilentSwitchCapability.SHIZUKU_PERMISSION_NEEDED) {
+                Button(
+                    onClick = {
+                        onRequestPermission()
+                        onDismiss()
+                    }
+                ) {
+                    Text("Shizuku İzni Ver")
+                }
+            } else {
+                TextButton(onClick = onDismiss) {
+                    Text("Tamam")
+                }
+            }
+        },
+        dismissButton = {
+            if (capability == SilentSwitchCapability.SHIZUKU_PERMISSION_NEEDED) {
+                TextButton(onClick = onDismiss) {
+                    Text("Kapat")
+                }
+            }
+        }
+    )
+}
