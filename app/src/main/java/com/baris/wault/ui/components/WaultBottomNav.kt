@@ -1,9 +1,5 @@
 package com.baris.wault.ui.components
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -12,8 +8,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -21,33 +15,38 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Contactless
+import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.QrCode2
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.baris.wault.ui.theme.WaultGlassBorderDark
-import com.baris.wault.ui.theme.WaultPrimaryMint
-import com.baris.wault.ui.theme.WaultSurfaceContainerDark
-import com.baris.wault.ui.theme.WaultSurfaceDark
+import androidx.compose.ui.unit.sp
+import com.baris.wault.ui.theme.WaultFloatingPillBg
+import com.baris.wault.ui.theme.WaultFloatingPillBorder
 
 enum class WaultTab(
     val label: String,
     val icon: ImageVector
 ) {
+    ALL(
+        label = "Tümü",
+        icon = Icons.Rounded.GridView
+    ),
     PAYMENT(
         label = "Temassız Ödeme",
         icon = Icons.Rounded.Contactless
@@ -59,109 +58,105 @@ enum class WaultTab(
 }
 
 @Composable
-fun WaultBottomNav(
-    selectedTab: WaultTab,
-    onSelectTab: (WaultTab) -> Unit,
+fun WaultFloatingPill(
+    onAllClick: () -> Unit = {},
+    onAddClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val haptics = LocalHapticFeedback.current
+    val pillShape = RoundedCornerShape(50)
 
-    Surface(
-        color = WaultSurfaceDark.copy(alpha = 0.96f),
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+    Box(
         modifier = modifier
-            .fillMaxWidth()
-            .border(
-                width = 1.dp,
-                color = WaultGlassBorderDark,
-                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-            )
+            .navigationBarsPadding()
+            .padding(bottom = 24.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Row(
+        Surface(
+            color = WaultFloatingPillBg,
+            shape = pillShape,
             modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .shadow(
+                    elevation = 24.dp,
+                    shape = pillShape,
+                    ambientColor = Color.Black,
+                    spotColor = Color.Black
+                )
+                .clip(pillShape)
+                .border(
+                    width = 1.dp,
+                    color = WaultFloatingPillBorder,
+                    shape = pillShape
+                )
         ) {
-            WaultTab.entries.forEach { tab ->
-                val isSelected = selectedTab == tab
-
-                val pillColor by animateColorAsState(
-                    targetValue = if (isSelected) {
-                        WaultPrimaryMint.copy(alpha = 0.16f)
-                    } else {
-                        WaultSurfaceContainerDark.copy(alpha = 0.45f)
-                    },
-                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                    label = "TabPillBg"
-                )
-
-                val borderColor by animateColorAsState(
-                    targetValue = if (isSelected) {
-                        WaultPrimaryMint.copy(alpha = 0.55f)
-                    } else {
-                        Color.Transparent
-                    },
-                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                    label = "TabPillBorder"
-                )
-
-                val contentColor by animateColorAsState(
-                    targetValue = if (isSelected) WaultPrimaryMint else Color(0xFF94A3B8),
-                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                    label = "TabContentColor"
-                )
-
-                val horizontalPad by animateDpAsState(
-                    targetValue = if (isSelected) 18.dp else 14.dp,
-                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                    label = "TabHorizontalPad"
-                )
-
-                Box(
+            Row(
+                modifier = Modifier.padding(horizontal = 7.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Left: Active View Pill ("Tümü")
+                Row(
                     modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
                         .clip(CircleShape)
-                        .background(pillColor)
-                        .border(1.dp, borderColor, CircleShape)
+                        .background(Color.White.copy(alpha = 0.14f))
+                        .border(
+                            width = 0.8.dp,
+                            color = Color.White.copy(alpha = 0.12f),
+                            shape = CircleShape
+                        )
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
                             onClick = {
-                                if (selectedTab != tab) {
-                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    onSelectTab(tab)
-                                }
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onAllClick()
                             }
                         )
-                        .padding(horizontal = horizontalPad),
+                        .padding(horizontal = 18.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.GridView,
+                        contentDescription = "Tümü",
+                        tint = Color.White,
+                        modifier = Modifier.size(17.dp)
+                    )
+                    Spacer(modifier = Modifier.width(7.dp))
+                    Text(
+                        text = "Tümü",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    )
+                }
+
+                // Right: Quick Barcode / Card Add (+) Circular Button
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.12f))
+                        .border(
+                            width = 0.8.dp,
+                            color = Color.White.copy(alpha = 0.16f),
+                            shape = CircleShape
+                        )
+                        .clickable {
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onAddClick()
+                        },
                     contentAlignment = Alignment.Center
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = tab.icon,
-                            contentDescription = tab.label,
-                            tint = contentColor,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = tab.label,
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                color = if (isSelected) Color.White else contentColor,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                            )
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Rounded.Add,
+                        contentDescription = "Yeni Kart Ekle",
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
                 }
             }
         }
     }
 }
-

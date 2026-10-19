@@ -92,6 +92,7 @@ fun <K : Any> StackCardSlot(
     targetTopPx: Float,
     zIndex: Float,
     isHidden: Boolean,
+    stackScaleX: Float = 1f,
     content: @Composable (isDragging: Boolean, modifier: Modifier) -> Unit
 ) {
     val isDragging = motion.draggingKey == key
@@ -119,10 +120,15 @@ fun <K : Any> StackCardSlot(
         }
     }
 
-    val liftScale = animateFloatAsState(
+    val animatedScaleX = animateFloatAsState(
+        targetValue = if (isDragging) 1.04f else stackScaleX,
+        animationSpec = spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMedium),
+        label = "StackCardScaleX"
+    )
+    val animatedScaleY = animateFloatAsState(
         targetValue = if (isDragging) 1.04f else 1f,
-        animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessMedium),
-        label = "StackCardLiftScale"
+        animationSpec = spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMedium),
+        label = "StackCardScaleY"
     )
 
     content(
@@ -131,8 +137,8 @@ fun <K : Any> StackCardSlot(
             .zIndex(if (isDragging) 500f else zIndex)
             .graphicsLayer {
                 translationY = if (isDragging) motion.dragTopPx.floatValue else topAnim.value
-                scaleX = liftScale.value
-                scaleY = liftScale.value
+                scaleX = animatedScaleX.value
+                scaleY = animatedScaleY.value
                 alpha = if (isHidden) 0f else 1f
             }
     )

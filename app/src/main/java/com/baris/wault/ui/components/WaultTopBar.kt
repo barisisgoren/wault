@@ -10,60 +10,77 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Contactless
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baris.wault.data.nfc.SilentSwitchCapability
 import com.baris.wault.ui.theme.WaultAmoledBlack
-import com.baris.wault.ui.theme.WaultGlassBorderDark
-import com.baris.wault.ui.theme.WaultPrimaryCyan
-import com.baris.wault.ui.theme.WaultPrimaryMint
-import com.baris.wault.ui.theme.WaultStatusAmber
-import com.baris.wault.ui.theme.WaultStatusGreen
-import com.baris.wault.ui.theme.WaultSurfaceDark
+import com.baris.wault.ui.theme.WaultShizukuActiveBg
+import com.baris.wault.ui.theme.WaultShizukuActiveDot
+import com.baris.wault.ui.theme.WaultShizukuInactiveBg
+import com.baris.wault.ui.theme.WaultShizukuInactiveDot
+import com.baris.wault.ui.theme.WaultTopActionBg
+import com.baris.wault.ui.theme.WaultTopActionBorder
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WaultTopBar(
     capability: SilentSwitchCapability,
     onStatusPillClick: () -> Unit,
+    onQuickAddClick: () -> Unit = {},
+    onMenuClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val dotColor by animateColorAsState(
-        targetValue = if (capability.isSilentReady) WaultStatusGreen else WaultStatusAmber,
+    val isReady = capability.isSilentReady
+
+    val pillBgColor by animateColorAsState(
+        targetValue = if (isReady) WaultShizukuActiveBg else WaultShizukuInactiveBg,
         animationSpec = tween(durationMillis = 260),
-        label = "StatusDotColor"
+        label = "ShizukuPillBg"
+    )
+    val dotColor by animateColorAsState(
+        targetValue = if (isReady) WaultShizukuActiveDot else WaultShizukuInactiveDot,
+        animationSpec = tween(durationMillis = 260),
+        label = "ShizukuDotColor"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (isReady) {
+            WaultShizukuActiveDot.copy(alpha = 0.42f)
+        } else {
+            WaultShizukuInactiveDot.copy(alpha = 0.35f)
+        },
+        animationSpec = tween(durationMillis = 260),
+        label = "ShizukuPillBorder"
     )
 
-    val infiniteTransition = rememberInfiniteTransition(label = "StatusPulse")
+    val infiniteTransition = rememberInfiniteTransition(label = "ShizukuPulse")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = if (capability.isSilentReady) 1.55f else 1.15f,
+        targetValue = if (isReady) 1.65f else 1.2f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 1500, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -71,7 +88,7 @@ fun WaultTopBar(
         label = "PulseScale"
     )
     val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.45f,
+        initialValue = 0.48f,
         targetValue = 0.08f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 1500, easing = FastOutSlowInEasing),
@@ -80,93 +97,118 @@ fun WaultTopBar(
         label = "PulseAlpha"
     )
 
-    TopAppBar(
-        modifier = modifier,
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = WaultAmoledBlack
-        ),
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(
-                            brush = Brush.linearGradient(
-                                colors = listOf(WaultPrimaryMint, WaultPrimaryCyan)
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Contactless,
-                        contentDescription = null,
-                        tint = Color(0xFF03140A),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(
-                    text = "Wault",
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.7).sp,
-                        color = Color.White
-                    )
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(WaultAmoledBlack)
+            .statusBarsPadding()
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Left Section: Bold "Wault" title + Compact Shizuku status pill
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f, fill = false)
+        ) {
+            Text(
+                text = "Wault",
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.8).sp,
+                    color = Color.White
                 )
-            }
-        },
-        actions = {
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
             Surface(
                 shape = CircleShape,
-                color = WaultSurfaceDark,
+                color = pillBgColor,
                 modifier = Modifier
-                    .padding(end = 16.dp)
                     .clip(CircleShape)
                     .border(
                         width = 1.dp,
-                        color = if (capability.isSilentReady) {
-                            WaultPrimaryMint.copy(alpha = 0.32f)
-                        } else {
-                            WaultGlassBorderDark
-                        },
+                        color = borderColor,
                         shape = CircleShape
                     )
                     .clickable(onClick = onStatusPillClick)
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
-                        modifier = Modifier.size(12.dp),
+                        modifier = Modifier.size(10.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(8.dp)
+                                .size(7.dp)
                                 .scale(pulseScale)
                                 .clip(CircleShape)
                                 .background(dotColor.copy(alpha = pulseAlpha))
                         )
                         Box(
                             modifier = Modifier
-                                .size(7.dp)
+                                .size(6.5.dp)
                                 .clip(CircleShape)
                                 .background(dotColor)
                         )
                     }
-                    Spacer(modifier = Modifier.width(7.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = capability.badgeLabel,
+                        text = if (isReady) "Shizuku Aktif" else "İzin Gerekli",
                         style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 11.5.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFFF1F5F9)
+                            color = if (isReady) Color(0xFF34C759) else Color(0xFFFFB340)
                         )
                     )
                 }
             }
         }
-    )
+
+        // Right Section: Two circular 36.dp action buttons (+ and ...)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            TopCircularActionButton(
+                icon = Icons.Rounded.Add,
+                contentDescription = "Hızlı Ekle",
+                onClick = onQuickAddClick
+            )
+            TopCircularActionButton(
+                icon = Icons.Rounded.MoreHoriz,
+                contentDescription = "Menü ve Ayarlar",
+                onClick = onMenuClick
+            )
+        }
+    }
 }
 
+@Composable
+private fun TopCircularActionButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .clip(CircleShape)
+            .background(WaultTopActionBg)
+            .border(1.dp, WaultTopActionBorder, CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = Color.White,
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}

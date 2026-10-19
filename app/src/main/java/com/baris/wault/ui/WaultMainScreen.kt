@@ -80,10 +80,9 @@ import com.baris.wault.data.vault.WaultBarcodeFormat
 import com.baris.wault.ui.components.AddCardBottomSheet
 import com.baris.wault.ui.components.EditBankCardSheet
 import com.baris.wault.ui.components.FullscreenBarcodeDialog
-import com.baris.wault.ui.components.PassStackSection
+import com.baris.wault.ui.components.PassGridSection
 import com.baris.wault.ui.components.PaymentStackSection
-import com.baris.wault.ui.components.WaultBottomNav
-import com.baris.wault.ui.components.WaultTab
+import com.baris.wault.ui.components.WaultFloatingPill
 import com.baris.wault.ui.components.WaultTopBar
 import com.baris.wault.ui.theme.WaultAmoledBlack
 import com.baris.wault.ui.theme.WaultGlassBorderDark
@@ -139,7 +138,6 @@ fun WaultMainScreen(
     onOpenFullscreenPass: (LoyaltyCardEntity) -> Unit,
     onCloseFullscreenPass: () -> Unit
 ) {
-    var selectedTab by rememberSaveable { mutableStateOf(WaultTab.PAYMENT) }
     var isUnifiedActionSheetVisible by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
@@ -148,111 +146,80 @@ fun WaultMainScreen(
         topBar = {
             WaultTopBar(
                 capability = uiState.shizukuCapability,
-                onStatusPillClick = onShizukuPillClick
+                onStatusPillClick = onShizukuPillClick,
+                onQuickAddClick = { onOpenAddPassSheet(null) },
+                onMenuClick = { isUnifiedActionSheetVisible = true }
             )
-        },
-        bottomBar = {
-            WaultBottomNav(
-                selectedTab = selectedTab,
-                onSelectTab = { selectedTab = it }
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    if (selectedTab == WaultTab.PASSES) {
-                        onOpenAddPassSheet(null)
-                    } else {
-                        isUnifiedActionSheetVisible = true
-                    }
-                },
-                containerColor = WaultPrimaryMint,
-                contentColor = Color(0xFF03140A),
-                shape = RoundedCornerShape(20.dp),
-                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 10.dp),
-                modifier = Modifier.size(58.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Add,
-                    contentDescription = "Yeni Ekle",
-                    modifier = Modifier.size(28.dp)
-                )
-            }
         }
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = innerPadding.calculateTopPadding())
         ) {
-            // Compact 60-Second Temporary NFC Switch Bar when active
-            val showCountdown = uiState.tempSwitchSecondsRemaining != null
-            val showQuickTrigger = !showCountdown &&
-                uiState.primaryBank != null &&
-                uiState.activeBank != null &&
-                uiState.primaryBank.componentName != uiState.activeBank.componentName
-
-            AnimatedVisibility(
-                visible = showCountdown || showQuickTrigger,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
+            Column(
+                modifier = Modifier.fillMaxSize()
             ) {
-                TemporaryNfcSwitchBar(
-                    primaryBank = uiState.primaryBank,
-                    secondsRemaining = uiState.tempSwitchSecondsRemaining,
-                    onStart60sCountdown = {
-                        uiState.activeBank?.let(onActivateTemp60s)
-                    },
-                    onRevertNow = onRevertToPrimaryNow,
-                    onCancelTimer = onCancelTempTimer,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
+                // Compact 60-Second Temporary NFC Switch Bar when active
+                val showCountdown = uiState.tempSwitchSecondsRemaining != null
+                val showQuickTrigger = !showCountdown &&
+                    uiState.primaryBank != null &&
+                    uiState.activeBank != null &&
+                    uiState.primaryBank.componentName != uiState.activeBank.componentName
+
+                AnimatedVisibility(
+                    visible = showCountdown || showQuickTrigger,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
+                ) {
+                    TemporaryNfcSwitchBar(
+                        primaryBank = uiState.primaryBank,
+                        secondsRemaining = uiState.tempSwitchSecondsRemaining,
+                        onStart60sCountdown = {
+                            uiState.activeBank?.let(onActivateTemp60s)
+                        },
+                        onRevertNow = onRevertToPrimaryNow,
+                        onCancelTimer = onCancelTempTimer,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
+                    )
+                }
+
+                // Unified Single-Screen Content:
+                // Top: Apple Wallet Bank Card Stack + "Okuyucuya yaklaştırın" NFC Status Indicator
+                // Bottom: 2-Column Compact Loyalty & Barcode Vault Grid
+                PaymentStackSection(
+                    banks = uiState.installedBanks,
+                    hiddenCount = uiState.hiddenBanks.size,
+                    activeBank = uiState.activeBank,
+                    isScanning = uiState.isScanningBanks,
+                    onSelectBank = onSelectBank,
+                    onEditBank = onOpenEditBankSheet,
+                    onActivateTemp60s = onActivateTemp60s,
+                    onReorderBanks = onReorderBanks,
+                    onRefreshBanks = onRefreshBanks,
+                    onOpenHiddenBanks = onOpenHiddenBanksSheet,
+                    modifier = Modifier.weight(1f),
+                    bottomContent = {
+                        PassGridSection(
+                            passes = uiState.loyaltyCards,
+                            onPassClick = onOpenFullscreenPass,
+                            onPassEdit = { card -> onOpenAddPassSheet(card) },
+                            onAddPassClick = { onOpenAddPassSheet(null) }
+                        )
+                    }
                 )
             }
 
-            // Tab Content Area: Tab 1 (Temassız Ödeme) vs Tab 2 (Geçiş Kartları)
-            AnimatedContent(
-                targetState = selectedTab,
-                transitionSpec = {
-                    fadeIn(tween(220)) togetherWith fadeOut(tween(160))
-                },
-                label = "WaultTabTransition",
-                modifier = Modifier.weight(1f)
-            ) { tab ->
-                when (tab) {
-                    WaultTab.PAYMENT -> {
-                        PaymentStackSection(
-                            banks = uiState.installedBanks,
-                            hiddenCount = uiState.hiddenBanks.size,
-                            activeBank = uiState.activeBank,
-                            isScanning = uiState.isScanningBanks,
-                            onSelectBank = onSelectBank,
-                            onEditBank = onOpenEditBankSheet,
-                            onActivateTemp60s = onActivateTemp60s,
-                            onReorderBanks = onReorderBanks,
-                            onRefreshBanks = onRefreshBanks,
-                            onOpenHiddenBanks = onOpenHiddenBanksSheet,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-
-                    WaultTab.PASSES -> {
-                        PassStackSection(
-                            passes = uiState.loyaltyCards,
-                            onPassClick = onOpenFullscreenPass,
-                            onMovePassToTop = onMovePassToTop,
-                            onReorderPasses = onReorderPasses,
-                            onPassEdit = { card -> onOpenAddPassSheet(card) },
-                            onPassDelete = onDeletePass,
-                            onAddPassClick = { onOpenAddPassSheet(null) },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                }
-            }
+            // Floating Frosted Glass Pill Dock anchored at BottomCenter
+            WaultFloatingPill(
+                onAllClick = onRefreshBanks,
+                onAddClick = { onOpenAddPassSheet(null) },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
     }
 
-    // Unified Action Bottom Sheet triggered by '+' FAB
+    // Unified Action Bottom Sheet triggered by '...' Menu button
     if (isUnifiedActionSheetVisible) {
         UnifiedQuickActionSheet(
             banks = uiState.installedBanks,
@@ -260,7 +227,6 @@ fun WaultMainScreen(
             onDismiss = { isUnifiedActionSheetVisible = false },
             onAddLoyaltyPass = {
                 isUnifiedActionSheetVisible = false
-                selectedTab = WaultTab.PASSES
                 onOpenAddPassSheet(null)
             },
             onCustomizeBank = { bank ->
