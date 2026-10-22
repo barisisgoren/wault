@@ -38,6 +38,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountBalance
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.QrCodeScanner
@@ -45,6 +46,7 @@ import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.ui.zIndex
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -78,6 +80,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.baris.wault.data.nfc.BankPaymentApp
 import com.baris.wault.data.nfc.SilentSwitchCapability
 import com.baris.wault.data.vault.LoyaltyCardEntity
@@ -152,7 +155,6 @@ fun WaultMainScreen(
 
     Scaffold(
         containerColor = WaultAmoledBlack,
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             WaultTopBar(
                 capability = uiState.shizukuCapability,
@@ -311,6 +313,19 @@ fun WaultMainScreen(
                         }
                     }
                 }
+            }
+
+            // Minimal Floating Notification Toast anchored directly above the Navigation Bar
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 86.dp)
+                    .padding(horizontal = 24.dp)
+                    .zIndex(45f)
+            ) { data ->
+                MinimalStatusPill(message = data.visuals.message)
             }
 
             // Floating Frosted Glass Pill Dock anchored at BottomCenter
@@ -913,4 +928,49 @@ private fun ShizukuStatusDialog(
             }
         }
     )
+}
+
+@Composable
+private fun MinimalStatusPill(
+    message: String,
+    modifier: Modifier = Modifier
+) {
+    val pillShape = RoundedCornerShape(50)
+    val isError = message.contains("açılamadı", ignoreCase = true) || message.contains("hata", ignoreCase = true)
+    val tintColor = if (isError) Color(0xFFFF453A) else Color(0xFF30D158)
+    val icon = if (isError) Icons.Rounded.Security else Icons.Rounded.CheckCircle
+
+    Surface(
+        color = Color(0xFF1E1E22).copy(alpha = 0.95f),
+        shape = pillShape,
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = Color.White.copy(alpha = 0.14f)
+        ),
+        shadowElevation = 14.dp,
+        modifier = modifier.clip(pillShape)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = tintColor,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = message,
+                style = MaterialTheme.typography.labelLarge.copy(
+                    color = Color.White,
+                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = (-0.1).sp
+                )
+            )
+        }
+    }
 }
