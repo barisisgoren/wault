@@ -380,19 +380,6 @@ fun WaultMainScreen(
                 }
             }
 
-            // Minimal Floating Notification Toast anchored directly above the Navigation Bar
-            SnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(bottom = 86.dp)
-                    .padding(horizontal = 24.dp)
-                    .zIndex(45f)
-            ) { data ->
-                MinimalStatusPill(message = data.visuals.message)
-            }
-
             // Floating Frosted Glass Pill Dock anchored at BottomCenter
             WaultFloatingPill(
                 currentTab = selectedTab,
@@ -993,49 +980,4 @@ private fun ShizukuStatusDialog(
             }
         }
     )
-}
-
-@Composable
-private fun MinimalStatusPill(
-    message: String,
-    modifier: Modifier = Modifier
-) {
-    val pillShape = RoundedCornerShape(50)
-    val isError = message.contains("açılamadı", ignoreCase = true) || message.contains("hata", ignoreCase = true)
-    val tintColor = if (isError) Color(0xFFFF453A) else Color(0xFF30D158)
-    val icon = if (isError) Icons.Rounded.Security else Icons.Rounded.CheckCircle
-
-    Surface(
-        color = Color(0xFF1E1E22).copy(alpha = 0.95f),
-        shape = pillShape,
-        border = androidx.compose.foundation.BorderStroke(
-            width = 1.dp,
-            color = Color.White.copy(alpha = 0.14f)
-        ),
-        shadowElevation = 14.dp,
-        modifier = modifier.clip(pillShape)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = tintColor,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = message,
-                style = MaterialTheme.typography.labelLarge.copy(
-                    color = Color.White,
-                    fontSize = 13.5.sp,
-                    fontWeight = FontWeight.Medium,
-                    letterSpacing = (-0.1).sp
-                )
-            )
-        }
-    }
 }

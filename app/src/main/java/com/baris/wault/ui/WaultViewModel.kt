@@ -217,9 +217,6 @@ class WaultViewModel(
                         startTemporary60sCountdown(primaryBank = primary, tempBank = bank)
                     } else {
                         cancelTemporaryCountdown(silent = true)
-                        _events.emit(
-                            WaultUiEvent.ShowMessage("${bank.displayTitle} varsayılan ödeme kartı yapıldı")
-                        )
                     }
                 }
 
@@ -372,18 +369,10 @@ class WaultViewModel(
         selectBankAsDefault(bank = primary, forceTemporary60s = false)
     }
 
-    fun cancelTemporaryCountdown(silent: Boolean = false) {
+    fun cancelTemporaryCountdown(silent: Boolean = true) {
         tempSwitchCountdownJob?.cancel()
         tempSwitchCountdownJob = null
         modalState.update { it.copy(tempSwitchSecondsRemaining = null) }
-        if (!silent) {
-            viewModelScope.launch {
-                val activeTitle = uiState.value.activeBank?.displayTitle ?: "Kart"
-                _events.emit(
-                    WaultUiEvent.ShowMessage("$activeTitle kalıcı olarak varsayılan bırakıldı")
-                )
-            }
-        }
     }
 
     fun openEditBankSheet(bank: BankPaymentApp) {
