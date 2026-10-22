@@ -81,6 +81,22 @@ data class BankPaymentApp(
                 rawComponentString.trim() == shortFlattenedComponent
         }
     }
+
+    /**
+     * Launches the underlying banking/transit app's main launcher activity directly.
+     */
+    fun launchBankApp(context: Context): Boolean {
+        return runCatching {
+            val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)
+            if (launchIntent != null) {
+                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(launchIntent)
+                true
+            } else {
+                false
+            }
+        }.getOrDefault(false)
+    }
 }
 
 class NfcPaymentScanner(private val context: Context) {

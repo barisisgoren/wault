@@ -10,11 +10,14 @@ import android.util.LruCache
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.ColorUtils
+import androidx.palette.graphics.Palette
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -28,6 +31,7 @@ object ImageStorageHelper {
     private const val JPEG_QUALITY = 88
 
     private val bitmapCache = object : LruCache<String, ImageBitmap>(32) {}
+    private val luminanceCache = object : LruCache<String, Float>(32) {}
 
     /**
      * Copies, downscales, and compresses a gallery image selected via PickVisualMedia
@@ -232,6 +236,26 @@ object ImageStorageHelper {
         }
     }
 
+    suspend fun getStoredImageLuminance(imagePath: String?): Float = withContext(Dispatchers.IO) {
+        if (imagePath.isNullOrBlank()) return@withContext 0.15f
+        synchronized(luminanceCache) {
+            luminanceCache.get(imagePath)?.let { return@withContext it }
+        }
+        runCatching {
+            val file = File(imagePath)
+            if (!file.exists() || !file.canRead()) return@runCatching 0.15f
+            val opts = BitmapFactory.Options().apply { inSampleSize = 4 }
+            val smallBmp = BitmapFactory.decodeFile(file.absolutePath, opts) ?: return@runCatching 0.15f
+            val palette = Palette.from(smallBmp).clearFilters().generate()
+            val dominant = palette.getDominantColor(0xFF1C1C1E.toInt())
+            val lum = ColorUtils.calculateLuminance(dominant).toFloat()
+            synchronized(luminanceCache) {
+                luminanceCache.put(imagePath, lum)
+            }
+            lum
+        }.getOrDefault(0.15f)
+    }
+
     private fun scaleDownIfNeeded(source: Bitmap, maxDimension: Int): Bitmap {
         val width = source.width
         val height = source.height
@@ -252,5 +276,14 @@ fun rememberStoredImageBitmap(imagePath: String?): ImageBitmap? {
         bitmap = ImageStorageHelper.loadStoredImageBitmap(imagePath)
     }
     return bitmap
+}
+
+@Composable
+fun rememberStoredImageLuminance(imagePath: String?): Float {
+    var luminance by remember(imagePath) { mutableFloatStateOf(0.15f) }
+    LaunchedEffect(imagePath) {
+        luminance = ImageStorageHelper.getStoredImageLuminance(imagePath)
+    }
+    return luminance
 }
 

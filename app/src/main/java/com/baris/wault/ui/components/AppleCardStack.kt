@@ -37,6 +37,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Contactless
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Timer
@@ -464,6 +465,10 @@ fun AppleCardStack(
                                 onTemp60s = {
                                     onActivateTemp60s(spotlightBank)
                                     closeSpotlight()
+                                },
+                                onLaunchBankApp = {
+                                    spotlightBank.launchBankApp(context)
+                                    closeSpotlight()
                                 }
                             )
                         }
@@ -480,7 +485,8 @@ private fun ApplePaySpotlightPrompt(
     showQuickEditActions: Boolean,
     onTriggerPaymentSuccess: () -> Unit,
     onEdit: () -> Unit,
-    onTemp60s: () -> Unit
+    onTemp60s: () -> Unit,
+    onLaunchBankApp: () -> Unit
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "SpotlightNfcRing")
     val ringScale by infiniteTransition.animateFloat(
@@ -626,6 +632,39 @@ private fun ApplePaySpotlightPrompt(
                             )
                         )
                     }
+                }
+            }
+
+            Surface(
+                shape = CircleShape,
+                color = Color(0xFF0A84FF).copy(alpha = 0.18f),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    Color(0xFF0A84FF).copy(alpha = 0.45f)
+                ),
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable(onClick = onLaunchBankApp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.OpenInNew,
+                        contentDescription = null,
+                        tint = Color(0xFF0A84FF),
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Uygulamayı Aç (QR / Mobil)",
+                        style = TextStyle(
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+                    )
                 }
             }
         }

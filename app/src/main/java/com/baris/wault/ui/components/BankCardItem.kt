@@ -53,6 +53,7 @@ import com.baris.wault.data.nfc.BankPaymentApp
 import com.baris.wault.data.nfc.BankPaymentNetwork
 import com.baris.wault.ui.theme.AppleWalletBankGradients
 import com.baris.wault.util.rememberStoredImageBitmap
+import com.baris.wault.util.rememberStoredImageLuminance
 import kotlin.math.abs
 
 @Composable
@@ -67,6 +68,7 @@ fun BankCardItem(
 ) {
     val cardShape = RoundedCornerShape(20.dp)
     val customCoverBitmap = rememberStoredImageBitmap(bank.customImagePath)
+    val customCoverLuminance = rememberStoredImageLuminance(bank.customImagePath)
 
     val elevation by animateDpAsState(
         targetValue = when {
@@ -111,13 +113,15 @@ fun BankCardItem(
 
     val effectiveNetwork = resolveEffectivePaymentNetwork(bank)
 
-    // Subtle specular glass border on top edge like a physical metallic Apple Pay card
-    val borderBrush = Brush.verticalGradient(
+    // 1px Top-Left Inner Specular Glass Border like a physical Apple Pay card
+    val borderBrush = Brush.linearGradient(
         colors = listOf(
-            Color.White.copy(alpha = 0.34f),
-            Color.White.copy(alpha = 0.10f),
+            Color.White.copy(alpha = 0.42f),
+            Color.White.copy(alpha = 0.14f),
             Color.White.copy(alpha = 0.04f)
-        )
+        ),
+        start = Offset(0f, 0f),
+        end = Offset(900f, 600f)
     )
 
     Box(
@@ -139,7 +143,7 @@ fun BankCardItem(
                 )
             )
             .border(
-                width = 0.9.dp,
+                width = 1.dp,
                 brush = borderBrush,
                 shape = cardShape
             )
@@ -151,26 +155,30 @@ fun BankCardItem(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
+            // Adaptive contrast scrim based on Palette luminance analysis
+            val topScrimAlpha = if (customCoverLuminance > 0.45f) 0.58f else 0.42f
+            val midScrimAlpha = if (customCoverLuminance > 0.55f) 0.24f else 0.14f
+            val bottomScrimAlpha = if (customCoverLuminance > 0.45f) 0.74f else 0.62f
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                Color.Black.copy(alpha = 0.44f),
-                                Color.Black.copy(alpha = 0.18f),
-                                Color.Black.copy(alpha = 0.68f)
+                                Color.Black.copy(alpha = topScrimAlpha),
+                                Color.Black.copy(alpha = midScrimAlpha),
+                                Color.Black.copy(alpha = bottomScrimAlpha)
                             )
                         )
                     )
             )
         } else {
-            // Subtle anodized metallic sheen
+            // Subtle anodized metallic sheen + brushed metal micro-texture
             Canvas(modifier = Modifier.fillMaxSize()) {
                 drawCircle(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            Color.White.copy(alpha = 0.13f),
+                            Color.White.copy(alpha = 0.14f),
                             Color.Transparent
                         ),
                         center = Offset(size.width * 0.84f, size.height * 0.10f),
@@ -179,6 +187,20 @@ fun BankCardItem(
                     radius = size.width * 0.62f,
                     center = Offset(size.width * 0.84f, size.height * 0.10f)
                 )
+
+                // Diagonal brushed metal micro-lines
+                val step = 18.dp.toPx()
+                val sheenColor = Color.White.copy(alpha = 0.025f)
+                var x = -size.height
+                while (x < size.width + size.height) {
+                    drawLine(
+                        color = sheenColor,
+                        start = Offset(x, 0f),
+                        end = Offset(x + size.height * 0.65f, size.height),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                    x += step
+                }
             }
         }
 

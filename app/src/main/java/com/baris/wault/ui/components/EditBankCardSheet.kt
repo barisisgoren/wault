@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Crop
 import androidx.compose.material.icons.rounded.DeleteOutline
@@ -230,6 +231,29 @@ fun EditBankCardSheet(
                         maxLines = 1
                     )
                 }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Quick Launch Bank App (QR / Mobile Banking Deep Link)
+            OutlinedButton(
+                onClick = {
+                    bank.launchBankApp(context)
+                    onDismiss()
+                },
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.OpenInNew,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "${bank.displayTitle} Uygulamasını Aç (QR / Mobil)",
+                    maxLines = 1
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
