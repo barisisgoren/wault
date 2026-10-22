@@ -6,11 +6,16 @@ import android.content.Context
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
@@ -189,65 +194,120 @@ fun WaultMainScreen(
                     )
                 }
 
-                when (selectedTab) {
-                    WaultTab.ALL -> {
-                        PaymentStackSection(
-                            banks = uiState.installedBanks,
-                            hiddenCount = uiState.hiddenBanks.size,
-                            activeBank = uiState.activeBank,
-                            isScanning = uiState.isScanningBanks,
-                            onSelectBank = onSelectBank,
-                            onEditBank = onOpenEditBankSheet,
-                            onActivateTemp60s = onActivateTemp60s,
-                            onReorderBanks = onReorderBanks,
-                            onRefreshBanks = onRefreshBanks,
-                            onOpenHiddenBanks = onOpenHiddenBanksSheet,
-                            isScrollable = true,
-                            modifier = Modifier.weight(1f),
-                            bottomContent = {
+                AnimatedContent(
+                    targetState = selectedTab,
+                    transitionSpec = {
+                        val isForward = targetState.ordinal >= initialState.ordinal
+                        val slideOffsetFraction = 0.16f
+                        val durationIn = 300
+                        val durationOut = 240
+
+                        if (isForward) {
+                            (slideInHorizontally(
+                                animationSpec = tween(durationMillis = durationIn, easing = FastOutSlowInEasing),
+                                initialOffsetX = { fullWidth -> (fullWidth * slideOffsetFraction).toInt() }
+                            ) + fadeIn(
+                                animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing)
+                            ) + scaleIn(
+                                animationSpec = tween(durationMillis = durationIn, easing = FastOutSlowInEasing),
+                                initialScale = 0.96f
+                            )).togetherWith(
+                                slideOutHorizontally(
+                                    animationSpec = tween(durationMillis = durationOut, easing = FastOutSlowInEasing),
+                                    targetOffsetX = { fullWidth -> (-fullWidth * slideOffsetFraction).toInt() }
+                                ) + fadeOut(
+                                    animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)
+                                ) + scaleOut(
+                                    animationSpec = tween(durationMillis = durationOut, easing = FastOutSlowInEasing),
+                                    targetScale = 0.96f
+                                )
+                            )
+                        } else {
+                            (slideInHorizontally(
+                                animationSpec = tween(durationMillis = durationIn, easing = FastOutSlowInEasing),
+                                initialOffsetX = { fullWidth -> (-fullWidth * slideOffsetFraction).toInt() }
+                            ) + fadeIn(
+                                animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing)
+                            ) + scaleIn(
+                                animationSpec = tween(durationMillis = durationIn, easing = FastOutSlowInEasing),
+                                initialScale = 0.96f
+                            )).togetherWith(
+                                slideOutHorizontally(
+                                    animationSpec = tween(durationMillis = durationOut, easing = FastOutSlowInEasing),
+                                    targetOffsetX = { fullWidth -> (fullWidth * slideOffsetFraction).toInt() }
+                                ) + fadeOut(
+                                    animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)
+                                ) + scaleOut(
+                                    animationSpec = tween(durationMillis = durationOut, easing = FastOutSlowInEasing),
+                                    targetScale = 0.96f
+                                )
+                            )
+                        }
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    label = "WaultTabTransition"
+                ) { tab ->
+                    when (tab) {
+                        WaultTab.ALL -> {
+                            PaymentStackSection(
+                                banks = uiState.installedBanks,
+                                hiddenCount = uiState.hiddenBanks.size,
+                                activeBank = uiState.activeBank,
+                                isScanning = uiState.isScanningBanks,
+                                onSelectBank = onSelectBank,
+                                onEditBank = onOpenEditBankSheet,
+                                onActivateTemp60s = onActivateTemp60s,
+                                onReorderBanks = onReorderBanks,
+                                onRefreshBanks = onRefreshBanks,
+                                onOpenHiddenBanks = onOpenHiddenBanksSheet,
+                                isScrollable = true,
+                                modifier = Modifier.fillMaxSize(),
+                                bottomContent = {
+                                    PassGridSection(
+                                        passes = uiState.loyaltyCards,
+                                        onPassClick = onOpenFullscreenPass,
+                                        onPassEdit = { card -> onOpenAddPassSheet(card) },
+                                        onAddPassClick = { onOpenAddPassSheet(null) }
+                                    )
+                                }
+                            )
+                        }
+
+                        WaultTab.PAYMENT -> {
+                            PaymentStackSection(
+                                banks = uiState.installedBanks,
+                                hiddenCount = uiState.hiddenBanks.size,
+                                activeBank = uiState.activeBank,
+                                isScanning = uiState.isScanningBanks,
+                                onSelectBank = onSelectBank,
+                                onEditBank = onOpenEditBankSheet,
+                                onActivateTemp60s = onActivateTemp60s,
+                                onReorderBanks = onReorderBanks,
+                                onRefreshBanks = onRefreshBanks,
+                                onOpenHiddenBanks = onOpenHiddenBanksSheet,
+                                isScrollable = false,
+                                modifier = Modifier.fillMaxSize(),
+                                bottomContent = {}
+                            )
+                        }
+
+                        WaultTab.PASSES -> {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState())
+                                    .padding(horizontal = 20.dp, vertical = 8.dp)
+                            ) {
                                 PassGridSection(
                                     passes = uiState.loyaltyCards,
                                     onPassClick = onOpenFullscreenPass,
                                     onPassEdit = { card -> onOpenAddPassSheet(card) },
                                     onAddPassClick = { onOpenAddPassSheet(null) }
                                 )
+                                Spacer(modifier = Modifier.height(110.dp))
                             }
-                        )
-                    }
-
-                    WaultTab.PAYMENT -> {
-                        PaymentStackSection(
-                            banks = uiState.installedBanks,
-                            hiddenCount = uiState.hiddenBanks.size,
-                            activeBank = uiState.activeBank,
-                            isScanning = uiState.isScanningBanks,
-                            onSelectBank = onSelectBank,
-                            onEditBank = onOpenEditBankSheet,
-                            onActivateTemp60s = onActivateTemp60s,
-                            onReorderBanks = onReorderBanks,
-                            onRefreshBanks = onRefreshBanks,
-                            onOpenHiddenBanks = onOpenHiddenBanksSheet,
-                            isScrollable = false,
-                            modifier = Modifier.weight(1f),
-                            bottomContent = {}
-                        )
-                    }
-
-                    WaultTab.PASSES -> {
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth()
-                                .verticalScroll(rememberScrollState())
-                                .padding(horizontal = 20.dp, vertical = 8.dp)
-                        ) {
-                            PassGridSection(
-                                passes = uiState.loyaltyCards,
-                                onPassClick = onOpenFullscreenPass,
-                                onPassEdit = { card -> onOpenAddPassSheet(card) },
-                                onAddPassClick = { onOpenAddPassSheet(null) }
-                            )
-                            Spacer(modifier = Modifier.height(110.dp))
                         }
                     }
                 }
