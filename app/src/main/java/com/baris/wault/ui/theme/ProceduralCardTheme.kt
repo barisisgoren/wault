@@ -1,218 +1,92 @@
 package com.baris.wault.ui.theme
 
-import androidx.compose.ui.geometry.Offset
+import android.graphics.Bitmap
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageShader
+import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.toArgb
+import androidx.core.graphics.ColorUtils
+import kotlin.random.Random
 
-data class ProceduralCardStyle(
-    val backgroundBrush: Brush,
-    val isChipGold: Boolean = true,
-    val isLightContent: Boolean = true,
-    val patternType: CardPatternType = CardPatternType.BRUSHED_METAL
-)
-
-enum class CardPatternType {
-    BRUSHED_METAL,
-    TRANSIT_WAVES,
-    CARBON_WEAVE,
-    COBALT_ARCS,
-    CLOVER_GLOW,
-    MINIMAL_OBSIDIAN
+/**
+ * One tonal system for every card.
+ * Each card keeps its brand HUE, but saturation and lightness are constrained to a single
+ * range, with a subtle matte gradient (~10% lightness shift) and a fine grain overlay.
+ */
+data class WalletCardStyle(
+    val top: Color,
+    val bottom: Color,
+    val onCard: Color,
+    val onCardSecondary: Color,
+    val isNeutralChip: Boolean = false
+) {
+    val mid: Color get() = Color(ColorUtils.blendARGB(top.toArgb(), bottom.toArgb(), 0.5f))
 }
 
-object ProceduralCardThemes {
+object WalletCardStyles {
 
-    fun resolve(titleOrPkg: String, fallbackStart: Int, fallbackEnd: Int): ProceduralCardStyle {
-        val key = titleOrPkg.lowercase()
-        return when {
-            key.contains("kentkart") || key.contains("istanbulkart") || key.contains("ulaşım") -> {
-                // High-Tech Transit Card: Warm ember to dark bronze with transit waves
-                ProceduralCardStyle(
-                    backgroundBrush = Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFFEA580C),
-                            Color(0xFFC2410C),
-                            Color(0xFF7C2D12),
-                            Color(0xFF2E0C04)
-                        ),
-                        start = Offset(0f, 0f),
-                        end = Offset(900f, 650f)
-                    ),
-                    isChipGold = true,
-                    patternType = CardPatternType.TRANSIT_WAVES
-                )
-            }
+    private const val SAT_MIN = 0.34f
+    private const val SAT_MAX = 0.46f
+    private const val L_TOP = 0.30f
+    private const val L_BOTTOM = 0.20f     // 10% lightness shift
 
-            key.contains("garanti") || key.contains("bonus") -> {
-                // Garanti Emerald / Obsidian
-                ProceduralCardStyle(
-                    backgroundBrush = Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFF059669),
-                            Color(0xFF047857),
-                            Color(0xFF064E3B),
-                            Color(0xFF02231A)
-                        ),
-                        start = Offset(0f, 0f),
-                        end = Offset(900f, 650f)
-                    ),
-                    isChipGold = true,
-                    patternType = CardPatternType.CLOVER_GLOW
-                )
-            }
+    /** Brand-derived, tonally constrained style (auto themes). */
+    fun fromBrand(brand: Color): WalletCardStyle {
+        val hsl = FloatArray(3)
+        ColorUtils.colorToHSL(brand.toArgb(), hsl)
+        val neutral = hsl[1] < 0.12f
+        val sat = if (neutral) 0.06f else hsl[1].coerceIn(SAT_MIN, SAT_MAX)
+        val top = Color(ColorUtils.HSLToColor(floatArrayOf(hsl[0], sat, L_TOP)))
+        val bottom = Color(ColorUtils.HSLToColor(floatArrayOf(hsl[0], sat * 0.92f, L_BOTTOM)))
+        return withReadableText(top, bottom, neutral)
+    }
 
-            key.contains("akbank") || key.contains("axess") || key.contains("wings") -> {
-                // Akbank Deep Crimson to Carbon
-                ProceduralCardStyle(
-                    backgroundBrush = Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFFE11D48),
-                            Color(0xFFBE123C),
-                            Color(0xFF881337),
-                            Color(0xFF28030C)
-                        ),
-                        start = Offset(0f, 0f),
-                        end = Offset(900f, 650f)
-                    ),
-                    isChipGold = false,
-                    patternType = CardPatternType.CARBON_WEAVE
-                )
-            }
+    /** User-chosen colour: honoured, only softened into a matte gradient. */
+    fun fromCustom(base: Color): WalletCardStyle {
+        val hsl = FloatArray(3)
+        ColorUtils.colorToHSL(base.toArgb(), hsl)
+        val bottomL = (hsl[2] - 0.10f).coerceIn(0.04f, 0.96f)
+        val bottom = Color(ColorUtils.HSLToColor(floatArrayOf(hsl[0], hsl[1], bottomL)))
+        return withReadableText(base, bottom, false)
+    }
 
-            key.contains("yapı") || key.contains("yapi") || key.contains("ykb") -> {
-                // Yapı Kredi Royal Sapphire
-                ProceduralCardStyle(
-                    backgroundBrush = Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFF2563EB),
-                            Color(0xFF1D4ED8),
-                            Color(0xFF1E3A8A),
-                            Color(0xFF0A1435)
-                        ),
-                        start = Offset(0f, 0f),
-                        end = Offset(900f, 650f)
-                    ),
-                    isChipGold = false,
-                    patternType = CardPatternType.COBALT_ARCS
-                )
-            }
+    /** Picks white/black per card so text meets WCAG AA (>= 4.5:1) against the darkest/lightest stop. */
+    private fun withReadableText(top: Color, bottom: Color, neutral: Boolean): WalletCardStyle {
+        fun contrast(fg: Color, bg: Color) = ColorUtils.calculateContrast(fg.toArgb(), bg.toArgb())
+        val whiteMin = minOf(contrast(Color.White, top), contrast(Color.White, bottom))
+        val blackMin = minOf(contrast(Color.Black, top), contrast(Color.Black, bottom))
+        val useWhite = whiteMin >= blackMin
+        val fg = if (useWhite) Color(0xFFF5F5F7) else Color(0xFF111113)
+        return WalletCardStyle(
+            top = top,
+            bottom = bottom,
+            onCard = fg,
+            onCardSecondary = fg.copy(alpha = if (useWhite) 0.74f else 0.72f),
+            isNeutralChip = neutral
+        )
+    }
 
-            key.contains("world") -> {
-                // World Mobil Velvet Purple
-                ProceduralCardStyle(
-                    backgroundBrush = Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFF7C3AED),
-                            Color(0xFF6D28D9),
-                            Color(0xFF4C1D95),
-                            Color(0xFF1C0638)
-                        ),
-                        start = Offset(0f, 0f),
-                        end = Offset(900f, 650f)
-                    ),
-                    isChipGold = true,
-                    patternType = CardPatternType.COBALT_ARCS
-                )
-            }
+    fun brush(style: WalletCardStyle): Brush = Brush.linearGradient(
+        colors = listOf(style.top, style.bottom),
+        start = androidx.compose.ui.geometry.Offset(0f, 0f),
+        end = androidx.compose.ui.geometry.Offset(700f, 900f)
+    )
+}
 
-            key.contains("ziraat") -> {
-                // Ziraat Imperial Burgundy
-                ProceduralCardStyle(
-                    backgroundBrush = Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFFB91C1C),
-                            Color(0xFF991B1B),
-                            Color(0xFF7F1D1D),
-                            Color(0xFF260505)
-                        ),
-                        start = Offset(0f, 0f),
-                        end = Offset(900f, 650f)
-                    ),
-                    isChipGold = true,
-                    patternType = CardPatternType.BRUSHED_METAL
-                )
-            }
-
-            key.contains("vakıf") || key.contains("vakif") -> {
-                // VakıfBank Warm Amber Bronze
-                ProceduralCardStyle(
-                    backgroundBrush = Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFFD97706),
-                            Color(0xFFB45309),
-                            Color(0xFF78350F),
-                            Color(0xFF2E1204)
-                        ),
-                        start = Offset(0f, 0f),
-                        end = Offset(900f, 650f)
-                    ),
-                    isChipGold = true,
-                    patternType = CardPatternType.BRUSHED_METAL
-                )
-            }
-
-            key.contains("iş") || key.contains("isbank") || key.contains("maximum") || key.contains("iscep") -> {
-                // İş Bankası Aegean Navy
-                ProceduralCardStyle(
-                    backgroundBrush = Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFF1D4ED8),
-                            Color(0xFF1E40AF),
-                            Color(0xFF1E3A8A),
-                            Color(0xFF09122C)
-                        ),
-                        start = Offset(0f, 0f),
-                        end = Offset(900f, 650f)
-                    ),
-                    isChipGold = false,
-                    patternType = CardPatternType.COBALT_ARCS
-                )
-            }
-
-            key.contains("papara") || key.contains("google") || key.contains("tapandpay") -> {
-                // Stealth Obsidian Black
-                ProceduralCardStyle(
-                    backgroundBrush = Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFF3F3F46),
-                            Color(0xFF27272A),
-                            Color(0xFF18181B),
-                            Color(0xFF09090B)
-                        ),
-                        start = Offset(0f, 0f),
-                        end = Offset(900f, 650f)
-                    ),
-                    isChipGold = false,
-                    patternType = CardPatternType.MINIMAL_OBSIDIAN
-                )
-            }
-
-            else -> {
-                val start = Color(fallbackStart)
-                val end = Color(fallbackEnd)
-                ProceduralCardStyle(
-                    backgroundBrush = Brush.linearGradient(
-                        colors = listOf(
-                            start,
-                            Color(
-                                (start.red * 0.7f).coerceIn(0f, 1f),
-                                (start.green * 0.7f).coerceIn(0f, 1f),
-                                (start.blue * 0.7f).coerceIn(0f, 1f)
-                            ),
-                            end,
-                            Color(
-                                (end.red * 0.35f).coerceIn(0f, 1f),
-                                (end.green * 0.35f).coerceIn(0f, 1f),
-                                (end.blue * 0.35f).coerceIn(0f, 1f)
-                            )
-                        ),
-                        start = Offset(0f, 0f),
-                        end = Offset(900f, 650f)
-                    ),
-                    isChipGold = true,
-                    patternType = CardPatternType.BRUSHED_METAL
-                )
-            }
+/** Cached, tiled film-grain shader (built once, shared by every card). */
+object CardGrain {
+    val brush: ShaderBrush by lazy {
+        val size = 96
+        val rnd = Random(7)
+        val px = IntArray(size * size) {
+            val v = rnd.nextInt(256)
+            val a = rnd.nextInt(0, 26)          // very faint
+            (a shl 24) or (v shl 16) or (v shl 8) or v
         }
+        val bmp = Bitmap.createBitmap(px, size, size, Bitmap.Config.ARGB_8888)
+        ShaderBrush(ImageShader(bmp.asImageBitmap(), TileMode.Repeated, TileMode.Repeated))
     }
 }

@@ -1,20 +1,14 @@
 package com.baris.wault.ui.components
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -31,255 +25,137 @@ import androidx.compose.ui.unit.sp
 import com.baris.wault.data.nfc.BankPaymentNetwork
 
 /**
- * Photorealistic 3D Metallic EMV Smart Chip (ISO/IEC 7816 standard geometry).
- * Renders 6 distinct laser-cut metallic contact pads with subtle dark division grooves
- * and realistic gold/silver brushed metallic specular gradient.
+ * Refined, fully vector EMV chip: muted champagne metal, thin etched contact lines.
  */
 @Composable
 fun PhotorealisticEmvChip(
     isGold: Boolean = true,
     modifier: Modifier = Modifier
 ) {
-    Canvas(
-        modifier = modifier
-            .width(42.dp)
-            .height(30.dp)
-            .clip(RoundedCornerShape(6.dp))
-    ) {
+    Canvas(modifier = modifier.size(width = 40.dp, height = 30.dp)) {
         val w = size.width
         val h = size.height
-        val corner = CornerRadius(5.dp.toPx(), 5.dp.toPx())
-
-        // 1. Base metallic substrate
-        val metalBrush = if (isGold) {
-            Brush.linearGradient(
-                colors = listOf(
-                    Color(0xFFFFECB3),
-                    Color(0xFFFFD54F),
-                    Color(0xFFFFB300),
-                    Color(0xFFFFA000),
-                    Color(0xFF8D6E63)
-                ),
-                start = Offset(0f, 0f),
-                end = Offset(w, h)
-            )
+        val r = CornerRadius(6.dp.toPx())
+        val metal = if (isGold) {
+            listOf(Color(0xFFE8D9B0), Color(0xFFCDB682), Color(0xFFE2D2A6))
         } else {
-            Brush.linearGradient(
-                colors = listOf(
-                    Color(0xFFFFFFFF),
-                    Color(0xFFE0E0E0),
-                    Color(0xFFBDBDBD),
-                    Color(0xFF757575)
-                ),
-                start = Offset(0f, 0f),
-                end = Offset(w, h)
-            )
+            listOf(Color(0xFFE4E4E8), Color(0xFFBDBDC4), Color(0xFFDADADF))
         }
-
         drawRoundRect(
-            brush = metalBrush,
-            size = size,
-            cornerRadius = corner
+            brush = Brush.linearGradient(metal, start = Offset.Zero, end = Offset(w, h)),
+            cornerRadius = r
         )
-
-        // 2. Chip outer bevel border
+        val line = Color.Black.copy(alpha = 0.26f)
+        val sw = 0.8.dp.toPx()
+        // etched contact layout
+        val cx = w * 0.5f
+        val padL = w * 0.34f
+        val padR = w * 0.66f
+        val y1 = h * 0.36f
+        val y2 = h * 0.64f
+        drawLine(line, Offset(0f, y1), Offset(padL, y1), sw)
+        drawLine(line, Offset(0f, y2), Offset(padL, y2), sw)
+        drawLine(line, Offset(padR, y1), Offset(w, y1), sw)
+        drawLine(line, Offset(padR, y2), Offset(w, y2), sw)
+        drawLine(line, Offset(cx, 0f), Offset(cx, y1), sw)
+        drawLine(line, Offset(cx, y2), Offset(cx, h), sw)
         drawRoundRect(
-            color = Color.Black.copy(alpha = 0.35f),
-            size = size,
-            cornerRadius = corner,
-            style = Stroke(width = 0.8.dp.toPx())
+            color = line,
+            topLeft = Offset(padL, y1),
+            size = Size(padR - padL, y2 - y1),
+            cornerRadius = CornerRadius(2.dp.toPx()),
+            style = Stroke(sw)
         )
-
-        // 3. Etched Contact Pad Isolation Grooves (6 micro-contacts)
-        val grooveColor = Color.Black.copy(alpha = 0.38f)
-        val grooveHighlight = Color.White.copy(alpha = 0.28f)
-        val strokeW = 0.75.dp.toPx()
-
-        val y1 = h * 0.34f
-        val y2 = h * 0.66f
-        val xMid = w * 0.50f
-        val centerBoxW = w * 0.38f
-        val centerBoxH = h * 0.52f
-        val centerBoxLeft = (w - centerBoxW) / 2f
-        val centerBoxTop = (h - centerBoxH) / 2f
-
-        // Center contact pad cutout
         drawRoundRect(
-            color = grooveColor,
-            topLeft = Offset(centerBoxLeft, centerBoxTop),
-            size = Size(centerBoxW, centerBoxH),
-            cornerRadius = CornerRadius(2.5.dp.toPx(), 2.5.dp.toPx()),
-            style = Stroke(width = strokeW)
-        )
-        // Subtle highlight shadow under groove
-        drawRoundRect(
-            color = grooveHighlight,
-            topLeft = Offset(centerBoxLeft + 0.5f, centerBoxTop + 0.5f),
-            size = Size(centerBoxW, centerBoxH),
-            cornerRadius = CornerRadius(2.5.dp.toPx(), 2.5.dp.toPx()),
-            style = Stroke(width = strokeW * 0.5f)
-        )
-
-        // Horizontal division lines from outer edges to center pad
-        // Top-left to center
-        drawLine(grooveColor, Offset(0f, y1), Offset(centerBoxLeft, y1), strokeWidth = strokeW)
-        drawLine(grooveHighlight, Offset(0f, y1 + 0.5f), Offset(centerBoxLeft, y1 + 0.5f), strokeWidth = strokeW * 0.5f)
-
-        // Bottom-left to center
-        drawLine(grooveColor, Offset(0f, y2), Offset(centerBoxLeft, y2), strokeWidth = strokeW)
-        drawLine(grooveHighlight, Offset(0f, y2 + 0.5f), Offset(centerBoxLeft, y2 + 0.5f), strokeWidth = strokeW * 0.5f)
-
-        // Top-right to center
-        drawLine(grooveColor, Offset(centerBoxLeft + centerBoxW, y1), Offset(w, y1), strokeWidth = strokeW)
-        drawLine(grooveHighlight, Offset(centerBoxLeft + centerBoxW, y1 + 0.5f), Offset(w, y1 + 0.5f), strokeWidth = strokeW * 0.5f)
-
-        // Bottom-right to center
-        drawLine(grooveColor, Offset(centerBoxLeft + centerBoxW, y2), Offset(w, y2), strokeWidth = strokeW)
-        drawLine(grooveHighlight, Offset(centerBoxLeft + centerBoxW, y2 + 0.5f), Offset(w, y2 + 0.5f), strokeWidth = strokeW * 0.5f)
-
-        // Vertical center division line inside center pad
-        drawLine(
-            grooveColor,
-            Offset(xMid, centerBoxTop),
-            Offset(xMid, centerBoxTop + centerBoxH),
-            strokeWidth = strokeW
+            color = Color.Black.copy(alpha = 0.18f),
+            cornerRadius = r,
+            style = Stroke(sw)
         )
     }
 }
 
-/**
- * Authentic Contactless Wave Symbol (4 concentric rounded arcs).
- */
+/** Contactless indicator drawn as three clean arcs. */
 @Composable
 fun CardContactlessSymbol(
     tint: Color = Color.White.copy(alpha = 0.85f),
     modifier: Modifier = Modifier
 ) {
-    Canvas(modifier = modifier.size(20.dp)) {
-        val strokeW = 1.6.dp.toPx()
-        val centerX = size.width * 0.15f
-        val centerY = size.height * 0.5f
-
-        val radii = listOf(size.width * 0.32f, size.width * 0.52f, size.width * 0.72f, size.width * 0.92f)
-        val sweepAngle = 76f
-        val startAngle = -sweepAngle / 2f
-
-        for (r in radii) {
+    Canvas(modifier = modifier.size(22.dp)) {
+        val sw = 1.7.dp.toPx()
+        val cy = size.height / 2f
+        val sweep = 72f
+        for (i in 1..3) {
+            val r = size.width * (0.22f + i * 0.24f)
             drawArc(
-                color = tint,
-                startAngle = startAngle,
-                sweepAngle = sweepAngle,
+                color = tint.copy(alpha = tint.alpha * (1.0f - (i - 1) * 0.18f)),
+                startAngle = -sweep / 2f,
+                sweepAngle = sweep,
                 useCenter = false,
-                topLeft = Offset(centerX - r, centerY - r),
+                topLeft = Offset(-r + size.width * 0.12f, cy - r),
                 size = Size(r * 2f, r * 2f),
-                style = Stroke(width = strokeW, cap = StrokeCap.Round)
+                style = Stroke(width = sw, cap = StrokeCap.Round)
             )
         }
     }
 }
 
 /**
- * Precision Payment Scheme Logos (Mastercard, VISA, TROY, AMEX)
- * designed to look identical to official physical payment cards in Apple Wallet.
+ * Uniform network badge: fixed 48x24dp slot, single optical weight, no floating pills.
  */
 @Composable
 fun ProceduralNetworkLogo(
     network: BankPaymentNetwork,
+    tint: Color = Color.White,
     modifier: Modifier = Modifier
 ) {
-    when (network) {
-        BankPaymentNetwork.MASTERCARD -> {
-            // Authentic Mastercard overlapping circles with center Venn lens
-            Canvas(modifier = modifier.size(width = 34.dp, height = 22.dp)) {
-                val r = size.height * 0.48f
-                val c1 = Offset(size.width * 0.36f, size.height * 0.5f)
-                val c2 = Offset(size.width * 0.64f, size.height * 0.5f)
-
-                // Left red circle
-                drawCircle(
-                    color = Color(0xFFEB001B),
-                    radius = r,
-                    center = c1
-                )
-                // Right yellow/orange circle
-                drawCircle(
-                    color = Color(0xFFF79E1B),
-                    radius = r,
-                    center = c2
-                )
-                // Translucent overlapping center intersection (giving official Mastercard depth)
-                drawCircle(
-                    color = Color(0xFFFF5F00).copy(alpha = 0.95f),
-                    radius = r * 0.92f,
-                    center = Offset((c1.x + c2.x) / 2f, size.height * 0.5f)
-                )
+    Box(
+        modifier = modifier
+            .width(48.dp)
+            .height(24.dp),
+        contentAlignment = Alignment.CenterEnd
+    ) {
+        when (network) {
+            BankPaymentNetwork.MASTERCARD -> Canvas(Modifier.size(width = 36.dp, height = 22.dp)) {
+                val r = size.height * 0.5f
+                val c1 = Offset(size.width * 0.34f, size.height / 2f)
+                val c2 = Offset(size.width * 0.66f, size.height / 2f)
+                drawCircle(Color(0xFFEB001B), r, c1)
+                drawCircle(Color(0xFFF79E1B), r, c2)
+                drawCircle(Color(0xFFFF5F00), r * 0.62f, Offset(size.width / 2f, size.height / 2f))
             }
-        }
 
-        BankPaymentNetwork.TROY -> {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Color.White.copy(alpha = 0.16f))
-                    .border(0.8.dp, Color.White.copy(alpha = 0.30f), RoundedCornerShape(6.dp))
-                    .padding(horizontal = 7.dp, vertical = 2.dp)
-            ) {
-                Text(
-                    text = "troy",
-                    style = TextStyle(
-                        fontFamily = FontFamily.SansSerif,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 0.8.sp,
-                        color = Color.White
-                    )
+            BankPaymentNetwork.TROY -> Text(
+                text = "troy",
+                style = TextStyle(
+                    fontFamily = FontFamily.SansSerif,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.2.sp,
+                    color = tint
                 )
-                Box(
-                    modifier = Modifier
-                        .padding(start = 2.dp)
-                        .size(4.dp)
-                        .clip(RoundedCornerShape(1.dp))
-                        .background(Color(0xFF00C0F3))
-                )
-            }
-        }
+            )
 
-        BankPaymentNetwork.AMEX -> {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = modifier
-                    .clip(RoundedCornerShape(5.dp))
-                    .background(Color(0xFF006FCF))
-                    .border(1.dp, Color.White.copy(alpha = 0.40f), RoundedCornerShape(5.dp))
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
-            ) {
-                Text(
-                    text = "AMEX",
-                    style = TextStyle(
-                        fontFamily = FontFamily.SansSerif,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 0.5.sp,
-                        color = Color.White
-                    )
+            BankPaymentNetwork.AMEX -> Text(
+                text = "AMEX",
+                style = TextStyle(
+                    fontFamily = FontFamily.SansSerif,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.6.sp,
+                    color = tint
                 )
-            }
-        }
+            )
 
-        else -> {
-            // VISA italic bold wordmark
-            Text(
+            else -> Text(
                 text = "VISA",
                 style = TextStyle(
                     fontFamily = FontFamily.SansSerif,
                     fontSize = 18.sp,
-                    fontWeight = FontWeight.Black,
+                    fontWeight = FontWeight.Bold,
                     fontStyle = FontStyle.Italic,
-                    letterSpacing = 0.8.sp,
-                    color = Color.White
-                ),
-                modifier = modifier
+                    letterSpacing = 0.4.sp,
+                    color = tint
+                )
             )
         }
     }

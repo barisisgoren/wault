@@ -41,6 +41,16 @@ import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Contactless
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.composed
+import androidx.compose.ui.graphics.graphicsLayer
+import com.baris.wault.ui.theme.LocalCardSheen
+import com.baris.wault.ui.theme.WaultTokens
+import com.baris.wault.ui.theme.rememberReduceMotion
+import com.baris.wault.ui.theme.rememberTiltSheen
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -75,7 +85,7 @@ import com.baris.wault.data.nfc.BankPaymentApp
 import kotlinx.coroutines.delay
 
 private val BANK_CARD_HEIGHT = 216.dp
-private val STACK_PEEK_OFFSET = 56.dp
+private val STACK_PEEK_OFFSET = 64.dp
 private val PULL_DOWN_ACCORDION_DISTANCE = 60.dp
 private val SPOTLIGHT_TOP_OFFSET = 24.dp
 private val SPOTLIGHT_GAP = 24.dp
@@ -99,7 +109,8 @@ fun AppleCardStack(
     val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
     val density = LocalDensity.current
-
+    val reduceMotion = rememberReduceMotion()
+    val tiltSheen = rememberTiltSheen(enabled = !reduceMotion)
     val cardHeightPx = with(density) { BANK_CARD_HEIGHT.toPx() }
     val peekStepPx = with(density) { STACK_PEEK_OFFSET.toPx() }
     val accordionPullPx = with(density) { PULL_DOWN_ACCORDION_DISTANCE.toPx() }
@@ -389,18 +400,38 @@ fun AppleCardStack(
                                 isHidden = spotlight.key == bank.packageName,
                                 stackScaleX = cardScaleX
                             ) { isDragging, slotModifier ->
-                                BankCardItem(
-                                    bank = bank,
-                                    isExpanded = stackIndex == 0,
-                                    isDefaultNfc = activeBank?.packageName == bank.packageName,
-                                    isFocused = false,
-                                    isDragging = isDragging,
-                                    onToggleFavorite = { onToggleFavorite(bank) },
-                                    modifier = slotModifier
-                                )
+                                CompositionLocalProvider(LocalCardSheen provides tiltSheen) {
+                                    BankCardItem(
+                                        bank = bank,
+                                        isExpanded = stackIndex == 0,
+                                        isDefaultNfc = activeBank?.packageName == bank.packageName,
+                                        isFocused = false,
+                                        isDragging = isDragging,
+                                        onToggleFavorite = { onToggleFavorite(bank) },
+                                        modifier = slotModifier.staggeredEntrance(
+                                            order = (localBanks.size - 1 - stackIndex).coerceIn(0, 10),
+                                            reduceMotion = reduceMotion
+                                        )
+                                    )
+                                }
                             }
                         }
                     }
+                }
+
+                // Quick actions under the front card — no dead space beneath the stack.
+                localBanks.firstOrNull()?.let { front ->
+                    Spacer(modifier = Modifier.height(WaultTokens.Space16))
+                    QuickActionsRow(
+                        onPay = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            isNfcRadarPulsing = true
+                            onSelectBank(front)
+                            openSpotlight(front.packageName, SpotlightMode.PAYMENT)
+                        },
+                        onDetails = { onEditBank(front) },
+                        onOpenApp = { front.launchBankApp(context) }
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
@@ -429,13 +460,15 @@ fun AppleCardStack(
                     closeSpotlight()
                 },
                 card = { cardModifier ->
-                    BankCardItem(
-                        bank = spotlightBank,
-                        isExpanded = true,
-                        isDefaultNfc = true,
-                        isFocused = true,
-                        modifier = cardModifier
-                    )
+                    CompositionLocalProvider(LocalCardSheen provides tiltSheen) {
+                        BankCardItem(
+                            bank = spotlightBank,
+                            isExpanded = true,
+                            isDefaultNfc = true,
+                            isFocused = true,
+                            modifier = cardModifier
+                        )
+                    }
                 },
                 belowContent = {
                     AnimatedContent(
@@ -668,5 +701,74 @@ private fun ApplePaySpotlightPrompt(
                 }
             }
         }
+    }
+}
+
+
+private fun Modifier.staggeredEntrance(order: Int, reduceMotion: Boolean): Modifier = composed {
+    val progress = remember { Animatable(if (reduceMotion) 1f else 0f) }
+    LaunchedEffect(Unit) {
+        if (!reduceMotion) {
+            delay(order * 35L)
+            progress.animateTo(1f, tween(durationMillis = 300))
+        }
+    }
+    graphicsLayer {
+        alpha = progress.value
+        translationY = (1f - progress.value) * 18.dp.toPx()
+    }
+}
+
+@Composable
+private fun QuickActionsRow(
+    onPay: () -> Unit,
+    onDetails: () -> Unit,
+    onOpenApp: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(WaultTokens.Space8)
+    ) {
+        QuickAction(Icons.Rounded.Contactless, "Öde", onPay, Modifier.weight(1f), primary = true)
+        QuickAction(Icons.Rounded.Tune, "Detaylar", onDetails, Modifier.weight(1f))
+        QuickAction(Icons.AutoMirrored.Rounded.OpenInNew, "Uygulama", onOpenApp, Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun QuickAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    primary: Boolean = false
+) {
+    val shape = RoundedCornerShape(WaultTokens.ControlRadius)
+    Row(
+        modifier = modifier
+            .height(WaultTokens.MinTouch + 4.dp)
+            .clip(shape)
+            .background(if (primary) WaultTokens.TextPrimary else WaultTokens.Bg2)
+            .border(1.dp, if (primary) Color.Transparent else WaultTokens.Stroke, shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = WaultTokens.Space12),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = if (primary) Color.Black else WaultTokens.TextPrimary,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(Modifier.width(WaultTokens.Space8))
+        Text(
+            text = label,
+            style = WaultTokens.Label.copy(
+                color = if (primary) Color.Black else WaultTokens.TextPrimary,
+                fontWeight = FontWeight.SemiBold
+            ),
+            maxLines = 1
+        )
     }
 }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -73,7 +74,7 @@ fun WaultFloatingPill(
     Box(
         modifier = modifier
             .navigationBarsPadding()
-            .padding(bottom = 24.dp),
+            .padding(bottom = 12.dp),
         contentAlignment = Alignment.Center
     ) {
         Surface(
@@ -101,7 +102,7 @@ fun WaultFloatingPill(
                 WaultTab.entries.forEach { tab ->
                     val isSelected = currentTab == tab
                     val animatedBgColor by animateColorAsState(
-                        targetValue = if (isSelected) Color.White.copy(alpha = 0.16f) else Color.Transparent,
+                        targetValue = if (isSelected) Color.White.copy(alpha = 0.18f) else Color.Transparent,
                         animationSpec = spring(dampingRatio = 0.82f, stiffness = 400f),
                         label = "TabBgColor"
                     )
@@ -130,20 +131,21 @@ fun WaultFloatingPill(
                                     }
                                 }
                             )
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                            .heightIn(min = 44.dp)
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = tab.icon,
                             contentDescription = tab.label,
-                            tint = if (isSelected) Color.White else Color.White.copy(alpha = 0.55f),
+                            tint = if (isSelected) Color.White else com.baris.wault.ui.theme.WaultTokens.TextSecondary,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = tab.label,
                             style = MaterialTheme.typography.labelLarge.copy(
-                                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.55f),
+                                color = if (isSelected) Color.White else com.baris.wault.ui.theme.WaultTokens.TextSecondary,
                                 fontSize = 13.5.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                             )

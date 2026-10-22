@@ -6,6 +6,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import com.baris.wault.ui.theme.WaultTokens
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -78,12 +80,7 @@ fun WaultTopBar(
             // Left: Clean, modern, semi-bold Wault logo title
             Text(
                 text = "Wault",
-                style = TextStyle(
-                    fontSize = 30.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.8).sp,
-                    color = Color.White
-                )
+                style = WaultTokens.TitleLarge.copy(color = WaultTokens.TextPrimary)
             )
 
             // Right: Minimalist Search, Add, and Settings (Gear) action buttons
@@ -184,9 +181,10 @@ private fun AppleTopActionButton(
 ) {
     Box(
         modifier = Modifier
-            .size(36.dp)
+            .size(WaultTokens.MinTouch)
             .clip(CircleShape)
-            .background(WaultTopActionBg)
+            .background(WaultTokens.Bg2)
+            .border(1.dp, WaultTokens.Stroke, CircleShape)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -197,8 +195,8 @@ private fun AppleTopActionButton(
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            tint = Color.White,
-            modifier = Modifier.size(19.dp)
+            tint = WaultTokens.TextPrimary,
+            modifier = Modifier.size(20.dp)
         )
     }
 }

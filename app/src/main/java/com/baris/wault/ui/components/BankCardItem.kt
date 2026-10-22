@@ -2,8 +2,9 @@ package com.baris.wault.ui.components
 
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.Canvas
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,7 +21,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Star
@@ -32,33 +32,36 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.baris.wault.data.nfc.BankPaymentApp
 import com.baris.wault.data.nfc.BankPaymentNetwork
-import com.baris.wault.ui.theme.CardPatternType
-import com.baris.wault.ui.theme.ProceduralCardThemes
+import com.baris.wault.ui.theme.AppleWalletBankGradients
+import com.baris.wault.ui.theme.CardGrain
+import com.baris.wault.ui.theme.LocalCardSheen
+import com.baris.wault.ui.theme.WalletCardStyle
+import com.baris.wault.ui.theme.WalletCardStyles
+import com.baris.wault.ui.theme.WaultTokens
+import com.baris.wault.ui.theme.rememberReduceMotion
 import com.baris.wault.util.rememberStoredImageBitmap
 import com.baris.wault.util.rememberStoredImageLuminance
 import kotlin.math.abs
 
 /**
- * Apple Wallet-grade Procedural Card Component (WalletCardComponent).
- * Built with procedural multi-stop gradients, brushed metal / carbon / transit patterns,
- * 3D photorealistic EMV chip, contactless waves, and authentic scheme badges.
+ * Wallet card (presentation only).
+ * - Collapsed (peek strip): 40dp logo tile, name, network badge.
+ * - Expanded: + chip, contactless, masked number, network badge bottom-right, small favourite icon.
  */
 @Composable
 fun BankCardItem(
@@ -70,49 +73,40 @@ fun BankCardItem(
     onToggleFavorite: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val cardShape = RoundedCornerShape(16.dp)
+    val cardShape = RoundedCornerShape(WaultTokens.CardRadius)
     val customCoverBitmap = rememberStoredImageBitmap(bank.customImagePath)
     val customCoverLuminance = rememberStoredImageLuminance(bank.customImagePath)
+    val reduceMotion = rememberReduceMotion()
+    val sheen = LocalCardSheen.current
 
     val elevation by animateDpAsState(
         targetValue = when {
-            isFocused || isDragging -> 28.dp
-            isExpanded -> 18.dp
-            else -> 10.dp
+            isFocused || isDragging -> 24.dp
+            isExpanded -> 14.dp
+            else -> 6.dp
         },
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "AppleCardElevation"
+        animationSpec = spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMediumLow),
+        label = "CardElevation"
     )
 
-    // Resolve procedural theme or custom color
-    val cardStyle = if (bank.customColorHex != null) {
-        val base = Color(bank.customColorHex!!)
-        val dark = Color(
-            (base.red * 0.28f).coerceIn(0f, 1f),
-            (base.green * 0.28f).coerceIn(0f, 1f),
-            (base.blue * 0.28f).coerceIn(0f, 1f)
-        )
-        val deep = Color(
-            (base.red * 0.12f).coerceIn(0f, 1f),
-            (base.green * 0.12f).coerceIn(0f, 1f),
-            (base.blue * 0.12f).coerceIn(0f, 1f)
-        )
-        com.baris.wault.ui.theme.ProceduralCardStyle(
-            backgroundBrush = Brush.linearGradient(
-                colors = listOf(base, dark, deep),
-                start = Offset(0f, 0f),
-                end = Offset(900f, 650f)
-            ),
-            isChipGold = true,
-            patternType = CardPatternType.BRUSHED_METAL
-        )
-    } else {
-        ProceduralCardThemes.resolve(
-            titleOrPkg = "${bank.displayTitle} ${bank.packageName}",
-            fallbackStart = bank.primaryColorArgb,
-            fallbackEnd = bank.secondaryColorArgb
-        )
+    // One tonal system: brand hue, constrained saturation/lightness. Custom colour is honoured.
+    val style: WalletCardStyle = remember(bank.customColorHex, bank.displayTitle, bank.packageName, bank.primaryColorArgb) {
+        if (bank.customColorHex != null) {
+            WalletCardStyles.fromCustom(Color(bank.customColorHex!!))
+        } else {
+            val brand = AppleWalletBankGradients.resolveForBank(
+                titleOrPkg = "${bank.displayTitle} ${bank.packageName}",
+                fallbackStartArgb = bank.primaryColorArgb,
+                fallbackEndArgb = bank.secondaryColorArgb
+            ).start
+            WalletCardStyles.fromBrand(brand)
+        }
     }
+    val backgroundBrush = remember(style) { WalletCardStyles.brush(style) }
+
+    val hasImage = customCoverBitmap != null
+    val onCard = if (hasImage) Color(0xFFF5F5F7) else style.onCard
+    val onCardSecondary = if (hasImage) Color(0xFFF5F5F7).copy(alpha = 0.78f) else style.onCardSecondary
 
     val displaySuffix = bank.cardNumberSuffix
         ?: when {
@@ -122,41 +116,43 @@ fun BankCardItem(
             bank.packageName.contains("iscep") -> "3940"
             bank.packageName.contains("ykb") -> "6108"
             bank.packageName.contains("ziraat") -> "1923"
-            else -> abs(bank.componentName.className.hashCode() % 9000 + 1000)
-                .toString()
-                .takeLast(4)
+            else -> abs(bank.componentName.className.hashCode() % 9000 + 1000).toString().takeLast(4)
         }
+    val network = resolveEffectivePaymentNetwork(bank)
 
-    val effectiveNetwork = resolveEffectivePaymentNetwork(bank)
-
-    // Apple 1px Inner Specular Highlight along top and left edges
-    val borderBrush = Brush.linearGradient(
-        colors = listOf(
-            Color.White.copy(alpha = 0.44f),
-            Color.White.copy(alpha = 0.16f),
-            Color.White.copy(alpha = 0.04f)
-        ),
-        start = Offset(0f, 0f),
-        end = Offset(900f, 650f)
+    val expandedAlpha by animateFloatAsState(
+        targetValue = if (isExpanded) 1f else 0f,
+        animationSpec = tween(if (reduceMotion) 0 else 220),
+        label = "ExpandedAlpha"
     )
+    val titleSize by animateFloatAsState(
+        targetValue = if (isExpanded) 18f else 16f,
+        animationSpec = tween(if (reduceMotion) 0 else 250),
+        label = "TitleSize"
+    )
+
+    // Top + left specular edge (1dp) like a physical card edge
+    val edgeBrush = remember {
+        Brush.linearGradient(
+            colors = listOf(Color.White.copy(alpha = 0.26f), Color.White.copy(alpha = 0.06f), Color.White.copy(alpha = 0.03f)),
+            start = Offset(0f, 0f),
+            end = Offset(500f, 700f)
+        )
+    }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(216.dp)
+            .height(WaultTokens.CardHeight)
             .shadow(
                 elevation = elevation,
                 shape = cardShape,
-                ambientColor = Color.Black,
+                ambientColor = Color.Black.copy(alpha = 0.6f),
                 spotColor = Color.Black
             )
             .clip(cardShape)
-            .background(brush = cardStyle.backgroundBrush)
-            .border(
-                width = 1.dp,
-                brush = borderBrush,
-                shape = cardShape
-            )
+            .background(backgroundBrush)
+            .border(1.dp, edgeBrush, cardShape)
     ) {
         if (customCoverBitmap != null) {
             Image(
@@ -165,206 +161,70 @@ fun BankCardItem(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
-            // Smart Palette Luminance Scrim
-            val topAlpha = if (customCoverLuminance > 0.45f) 0.60f else 0.42f
-            val midAlpha = if (customCoverLuminance > 0.55f) 0.22f else 0.12f
-            val botAlpha = if (customCoverLuminance > 0.45f) 0.76f else 0.64f
+            val top = if (customCoverLuminance > 0.45f) 0.60f else 0.42f
+            val mid = if (customCoverLuminance > 0.55f) 0.22f else 0.12f
+            val bottom = if (customCoverLuminance > 0.45f) 0.76f else 0.64f
             Box(
-                modifier = Modifier
+                Modifier
                     .fillMaxSize()
                     .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Black.copy(alpha = topAlpha),
-                                Color.Black.copy(alpha = midAlpha),
-                                Color.Black.copy(alpha = botAlpha)
-                            )
+                        Brush.verticalGradient(
+                            listOf(Color.Black.copy(alpha = top), Color.Black.copy(alpha = mid), Color.Black.copy(alpha = bottom))
                         )
                     )
             )
         } else {
-            // Procedural Micro-Texture and Watermark Canvas
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val w = size.width
-                val h = size.height
-
-                // Radial ambient light at top-right
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0.16f),
-                            Color.Transparent
-                        ),
-                        center = Offset(w * 0.82f, h * 0.12f),
-                        radius = w * 0.58f
-                    ),
-                    radius = w * 0.58f,
-                    center = Offset(w * 0.82f, h * 0.12f)
-                )
-
-                when (cardStyle.patternType) {
-                    CardPatternType.TRANSIT_WAVES -> {
-                        // Smooth flowing transit line arcs
-                        val waveColor = Color.White.copy(alpha = 0.06f)
-                        val waveStroke = 2.dp.toPx()
-                        for (i in 0..4) {
-                            val r = w * 0.45f + i * 28.dp.toPx()
-                            drawArc(
-                                color = waveColor,
-                                startAngle = 180f,
-                                sweepAngle = 90f,
-                                useCenter = false,
-                                topLeft = Offset(w - r, h - r),
-                                size = Size(r * 2f, r * 2f),
-                                style = Stroke(width = waveStroke, cap = StrokeCap.Round)
-                            )
-                        }
-                    }
-
-                    CardPatternType.CARBON_WEAVE -> {
-                        // Fine carbon weave pattern
-                        val weaveColor = Color.White.copy(alpha = 0.022f)
-                        val step = 14.dp.toPx()
-                        var x = -h
-                        while (x < w + h) {
-                            drawLine(
-                                color = weaveColor,
-                                start = Offset(x, 0f),
-                                end = Offset(x + h, h),
-                                strokeWidth = 1.dp.toPx()
-                            )
-                            drawLine(
-                                color = weaveColor,
-                                start = Offset(x + h, 0f),
-                                end = Offset(x, h),
-                                strokeWidth = 1.dp.toPx()
-                            )
-                            x += step
-                        }
-                    }
-
-                    CardPatternType.COBALT_ARCS -> {
-                        // Geometric tech arcs
-                        val arcColor = Color.White.copy(alpha = 0.045f)
-                        for (i in 1..4) {
-                            val r = h * 0.65f * i
-                            drawCircle(
-                                color = arcColor,
-                                radius = r,
-                                center = Offset(w * 0.10f, h * 1.1f),
-                                style = Stroke(width = 1.5.dp.toPx())
-                            )
-                        }
-                    }
-
-                    CardPatternType.CLOVER_GLOW -> {
-                        // Subtle 4-petal geometric clover watermark
-                        val center = Offset(w * 0.78f, h * 0.65f)
-                        val petalR = 36.dp.toPx()
-                        val color = Color.White.copy(alpha = 0.035f)
-                        drawCircle(color = color, radius = petalR, center = Offset(center.x - petalR * 0.5f, center.y))
-                        drawCircle(color = color, radius = petalR, center = Offset(center.x + petalR * 0.5f, center.y))
-                        drawCircle(color = color, radius = petalR, center = Offset(center.x, center.y - petalR * 0.5f))
-                        drawCircle(color = color, radius = petalR, center = Offset(center.x, center.y + petalR * 0.5f))
-                    }
-
-                    CardPatternType.BRUSHED_METAL -> {
-                        // Subtle fine brushed satin streaks
-                        val step = 16.dp.toPx()
-                        val sheenColor = Color.White.copy(alpha = 0.022f)
-                        var x = -h
-                        while (x < w + h) {
-                            drawLine(
-                                color = sheenColor,
-                                start = Offset(x, 0f),
-                                end = Offset(x + h * 0.6f, h),
-                                strokeWidth = 1.dp.toPx()
-                            )
-                            x += step
-                        }
-                    }
-
-                    CardPatternType.MINIMAL_OBSIDIAN -> {
-                        // Deep matte finish with subtle bottom vignette
+            // Fine grain (cached shader) + reactive light sheen. State read only in the draw phase.
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .drawBehind {
+                        drawRect(CardGrain.brush, alpha = 0.55f)
+                        val pos = if (reduceMotion) 0.25f else sheen.value
+                        val cx = size.width * (0.5f + 0.5f * pos)
+                        val half = size.width * 0.42f
                         drawRect(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.40f)),
-                                startY = h * 0.4f,
-                                endY = h
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(Color.Transparent, Color.White.copy(alpha = 0.07f * (0.4f + 0.6f * expandedAlpha)), Color.Transparent),
+                                startX = cx - half,
+                                endX = cx + half
                             )
                         )
                     }
-                }
-            }
+            )
         }
 
-        // ================= STANDART KART KATMANLARI =================
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 22.dp, vertical = 20.dp),
+                .padding(start = WaultTokens.Space16, end = WaultTokens.Space16, top = WaultTokens.Space12, bottom = WaultTokens.Space16),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // 1. ÜST SATIR (SOL ÜST: İkon + Banka Adı | SAĞ ÜST: Şema Logosu + Favori Yıldızı)
+            // ---- Header row: logo tile + name | network (collapsed) / favourite (expanded) ----
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth().height(WaultTokens.LogoTile),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Sol Üst: Banka İkonu ve Başlık
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
+                LogoTile(bank = bank)
+                Spacer(Modifier.width(WaultTokens.Space12))
+                Text(
+                    text = cleanBankTitle(bank.displayTitle),
+                    style = WaultTokens.CardTitle.copy(fontSize = titleSize.sp, color = onCard),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
-                ) {
-                    if (bank.iconBitmap != null) {
-                        Image(
-                            bitmap = bank.iconBitmap,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(26.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .border(0.8.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(6.dp))
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                    }
-
-                    Text(
-                        text = cleanBankTitle(bank.displayTitle),
-                        style = TextStyle(
-                            fontFamily = FontFamily.SansSerif,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = (-0.2).sp,
-                            color = Color.White
-                        ),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                )
+                Box(contentAlignment = Alignment.CenterEnd) {
+                    ProceduralNetworkLogo(
+                        network = network,
+                        tint = onCard,
+                        modifier = Modifier.alpha(1f - expandedAlpha)
                     )
-                }
-
-                // Sağ Üst: Ödeme Şeması Logosu (Mastercard, Visa, Troy) + Favori Yıldızı
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    ProceduralNetworkLogo(network = effectiveNetwork)
-
-                    if (onToggleFavorite != null) {
+                    if (onToggleFavorite != null && isExpanded) {
                         Box(
                             modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (bank.isFavorite) Color(0xFFFFD60A).copy(alpha = 0.25f)
-                                    else Color.White.copy(alpha = 0.12f)
-                                )
-                                .border(
-                                    width = 0.8.dp,
-                                    color = if (bank.isFavorite) Color(0xFFFFD60A).copy(alpha = 0.65f)
-                                    else Color.White.copy(alpha = 0.18f),
-                                    shape = CircleShape
-                                )
+                                .size(WaultTokens.MinTouch)
+                                .alpha(expandedAlpha)
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = null,
@@ -374,53 +234,63 @@ fun BankCardItem(
                         ) {
                             Icon(
                                 imageVector = if (bank.isFavorite) Icons.Rounded.Star else Icons.Rounded.StarBorder,
-                                contentDescription = if (bank.isFavorite) "Favori" else "Favoriye Ekle",
-                                tint = if (bank.isFavorite) Color(0xFFFFD60A) else Color.White.copy(alpha = 0.80f),
-                                modifier = Modifier.size(16.dp)
+                                contentDescription = if (bank.isFavorite) "Favorilerden Çıkar" else "Favorilere Ekle",
+                                tint = if (bank.isFavorite) WaultTokens.Favorite else onCardSecondary,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
                 }
             }
 
-            // 2. ORTA-SOL (Aktif/Ön Kartta): 3D EMV Çip + Temassız Dalga Simgesi
+            // ---- Chip + contactless (expanded content) ----
             Row(
+                modifier = Modifier.alpha(expandedAlpha),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                horizontalArrangement = Arrangement.spacedBy(WaultTokens.Space12)
             ) {
-                PhotorealisticEmvChip(isGold = cardStyle.isChipGold)
-                CardContactlessSymbol(tint = Color.White.copy(alpha = 0.85f))
+                PhotorealisticEmvChip(isGold = !style.isNeutralChip)
+                CardContactlessSymbol(tint = onCardSecondary)
             }
 
-            // 3. ALT-SOL (Aktif/Ön Kartta): Maskelenmiş Kart Numarası (•••• 2639)
+            // ---- Masked number (left) + network badge (right) ----
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().alpha(expandedAlpha),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Bottom
             ) {
                 Text(
                     text = "•••• $displaySuffix",
-                    style = TextStyle(
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White.copy(alpha = 0.95f),
-                        letterSpacing = 2.5.sp
-                    )
+                    style = WaultTokens.CardDigits.copy(color = onCard, fontWeight = FontWeight.Medium)
                 )
-
-                // Subtle corporate watermark branding
-                Text(
-                    text = cleanBankTitle(bank.displayTitle).uppercase(),
-                    style = TextStyle(
-                        fontFamily = FontFamily.SansSerif,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.2.sp,
-                        color = Color.White.copy(alpha = 0.40f)
-                    )
-                )
+                ProceduralNetworkLogo(network = network, tint = onCard)
             }
+        }
+    }
+}
+
+/** Uniform 40dp brand tile — logo is always fitted (never cropped) on a neutral plate. */
+@Composable
+private fun LogoTile(bank: BankPaymentApp) {
+    Box(
+        modifier = Modifier
+            .size(WaultTokens.LogoTile)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFFF2F2F7)),
+        contentAlignment = Alignment.Center
+    ) {
+        if (bank.iconBitmap != null) {
+            Image(
+                bitmap = bank.iconBitmap,
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize().padding(5.dp)
+            )
+        } else {
+            Text(
+                text = cleanBankTitle(bank.displayTitle).take(1).uppercase(),
+                style = WaultTokens.CardTitle.copy(color = Color(0xFF1C1C1E))
+            )
         }
     }
 }
@@ -428,16 +298,13 @@ fun BankCardItem(
 private fun cleanBankTitle(rawTitle: String): String {
     val trimmed = rawTitle.trim()
     if (trimmed.contains('.') && !trimmed.contains(' ')) {
-        val lastSegment = trimmed.substringAfterLast('.')
-        return lastSegment.replaceFirstChar { it.uppercase() }
+        return trimmed.substringAfterLast('.').replaceFirstChar { it.uppercase() }
     }
     return trimmed
 }
 
 private fun resolveEffectivePaymentNetwork(bank: BankPaymentApp): BankPaymentNetwork {
-    if (bank.paymentNetwork != BankPaymentNetwork.AUTO) {
-        return bank.paymentNetwork
-    }
+    if (bank.paymentNetwork != BankPaymentNetwork.AUTO) return bank.paymentNetwork
     val lower = (bank.displayTitle + " " + bank.packageName).lowercase()
     return when {
         lower.contains("troy") || lower.contains("ziraat") || lower.contains("vakıf") ||
@@ -449,10 +316,6 @@ private fun resolveEffectivePaymentNetwork(bank: BankPaymentApp): BankPaymentNet
         lower.contains("visa") || lower.contains("akbank") || lower.contains("juzdan") ||
             lower.contains("iscep") || lower.contains("iş") || lower.contains("maximum") ||
             lower.contains("paycell") -> BankPaymentNetwork.VISA
-        else -> if (abs(bank.flattenedComponent.hashCode()) % 2 == 1) {
-            BankPaymentNetwork.MASTERCARD
-        } else {
-            BankPaymentNetwork.VISA
-        }
+        else -> if (abs(bank.flattenedComponent.hashCode()) % 2 == 1) BankPaymentNetwork.MASTERCARD else BankPaymentNetwork.VISA
     }
 }
