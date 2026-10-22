@@ -90,6 +90,7 @@ fun AppleCardStack(
     onEditBank: (BankPaymentApp) -> Unit,
     onActivateTemp60s: (BankPaymentApp) -> Unit,
     onReorderBanks: (List<BankPaymentApp>) -> Unit,
+    onToggleFavorite: (BankPaymentApp) -> Unit = {},
     isScrollable: Boolean = true,
     modifier: Modifier = Modifier,
     bottomContent: @Composable () -> Unit = {}
@@ -393,6 +394,7 @@ fun AppleCardStack(
                                     isDefaultNfc = activeBank?.packageName == bank.packageName,
                                     isFocused = false,
                                     isDragging = isDragging,
+                                    onToggleFavorite = { onToggleFavorite(bank) },
                                     modifier = slotModifier
                                 )
                             }

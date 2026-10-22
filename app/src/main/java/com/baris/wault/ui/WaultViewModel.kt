@@ -97,7 +97,8 @@ class WaultViewModel(
                 sortOrder = 1000 + idx
             ))
         }.sortedWith(
-            compareBy<BankPaymentApp> { it.sortOrder }
+            compareByDescending<BankPaymentApp> { it.isFavorite }
+                .thenBy { it.sortOrder }
                 .thenByDescending { it.isPrimary }
                 .thenBy { it.displayTitle.lowercase() }
         )
@@ -436,7 +437,8 @@ class WaultViewModel(
                 paymentNetwork = paymentNetwork?.takeIf { it.isNotBlank() },
                 isPrimary = isPrimary && !isHidden,
                 isHidden = isHidden,
-                sortOrder = previousOverride?.sortOrder ?: bank.sortOrder
+                sortOrder = previousOverride?.sortOrder ?: bank.sortOrder,
+                isFavorite = previousOverride?.isFavorite ?: bank.isFavorite
             )
             bankOverrideDao.upsertOverride(entity)
             closeEditBankSheet()
@@ -449,6 +451,27 @@ class WaultViewModel(
                 }
                 _events.emit(WaultUiEvent.ShowMessage(msg))
             }
+        }
+    }
+
+    fun toggleFavoriteBank(bank: BankPaymentApp) {
+        viewModelScope.launch {
+            val flattened = bank.flattenedComponent
+            val prev = bankOverrideDao.getOverride(flattened)
+                ?: bankOverrideDao.getOverride(bank.shortFlattenedComponent)
+            val newFav = !(prev?.isFavorite ?: bank.isFavorite)
+            val entity = (prev ?: BankCardOverrideEntity(
+                componentFlatten = flattened,
+                sortOrder = bank.sortOrder
+            )).copy(isFavorite = newFav)
+            bankOverrideDao.upsertOverride(entity)
+
+            val msg = if (newFav) {
+                "${bank.displayTitle} favorilere eklendi"
+            } else {
+                "${bank.displayTitle} favorilerden çıkarıldı"
+            }
+            _events.emit(WaultUiEvent.ShowMessage(msg))
         }
     }
 

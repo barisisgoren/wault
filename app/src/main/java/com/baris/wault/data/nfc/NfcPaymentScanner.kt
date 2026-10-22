@@ -60,6 +60,9 @@ data class BankPaymentApp(
     val isHidden: Boolean
         get() = override?.isHidden == true
 
+    val isFavorite: Boolean
+        get() = override?.isFavorite == true
+
     val sortOrder: Int
         get() = override?.sortOrder ?: 0
 

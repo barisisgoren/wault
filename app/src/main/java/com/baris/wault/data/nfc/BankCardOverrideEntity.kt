@@ -37,7 +37,8 @@ data class BankCardOverrideEntity(
     val paymentNetwork: String? = null,
     val isPrimary: Boolean = false,
     val isHidden: Boolean = false,
-    val sortOrder: Int = 0
+    val sortOrder: Int = 0,
+    val isFavorite: Boolean = false
 )
 
 @Dao

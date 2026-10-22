@@ -25,7 +25,7 @@ class WaultTypeConverters {
         LoyaltyCardEntity::class,
         BankCardOverrideEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(WaultTypeConverters::class)
@@ -46,6 +46,14 @@ abstract class WaultDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                runCatching {
+                    db.execSQL("ALTER TABLE bank_card_overrides ADD COLUMN isFavorite INTEGER NOT NULL DEFAULT 0")
+                }
+            }
+        }
+
         @Volatile
         private var INSTANCE: WaultDatabase? = null
 
@@ -56,7 +64,7 @@ abstract class WaultDatabase : RoomDatabase() {
                     WaultDatabase::class.java,
                     DATABASE_NAME
                 )
-                    .addMigrations(MIGRATION_2_3)
+                    .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
                     .also { INSTANCE = it }

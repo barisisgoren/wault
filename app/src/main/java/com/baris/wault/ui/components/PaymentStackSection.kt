@@ -14,6 +14,7 @@ fun PaymentStackSection(
     onEditBank: (BankPaymentApp) -> Unit,
     onActivateTemp60s: (BankPaymentApp) -> Unit,
     onReorderBanks: (List<BankPaymentApp>) -> Unit,
+    onToggleFavorite: (BankPaymentApp) -> Unit = {},
     onRefreshBanks: () -> Unit = {},
     onOpenHiddenBanks: () -> Unit = {},
     isScrollable: Boolean = true,
@@ -27,6 +28,7 @@ fun PaymentStackSection(
         onEditBank = onEditBank,
         onActivateTemp60s = onActivateTemp60s,
         onReorderBanks = onReorderBanks,
+        onToggleFavorite = onToggleFavorite,
         isScrollable = isScrollable,
         modifier = modifier,
         bottomContent = bottomContent

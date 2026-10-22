@@ -7,6 +7,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,13 +20,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Contactless
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,9 +62,10 @@ fun BankCardItem(
     isDefaultNfc: Boolean = false,
     isFocused: Boolean = false,
     isDragging: Boolean = false,
+    onToggleFavorite: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val cardShape = RoundedCornerShape(16.dp)
+    val cardShape = RoundedCornerShape(20.dp)
     val customCoverBitmap = rememberStoredImageBitmap(bank.customImagePath)
 
     val elevation by animateDpAsState(
@@ -91,6 +98,7 @@ fun BankCardItem(
 
     val displaySuffix = bank.cardNumberSuffix
         ?: when {
+            bank.packageName.contains("kentkart") || bank.displayTitle.contains("kentkart", ignoreCase = true) -> "2639"
             bank.packageName.contains("akbank") -> "0454"
             bank.packageName.contains("garanti") -> "8219"
             bank.packageName.contains("iscep") -> "3940"
@@ -216,9 +224,39 @@ fun BankCardItem(
                     )
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(8.dp))
 
-                AppleCardNetworkLogo(network = effectiveNetwork)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AppleCardNetworkLogo(network = effectiveNetwork)
+
+                    if (onToggleFavorite != null) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (bank.isFavorite) Color(0xFFFFD60A).copy(alpha = 0.22f)
+                                    else Color.White.copy(alpha = 0.12f)
+                                )
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = onToggleFavorite
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (bank.isFavorite) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+                                contentDescription = if (bank.isFavorite) "Favorilerden Çıkar" else "Favorilere Ekle",
+                                tint = if (bank.isFavorite) Color(0xFFFFD60A) else Color.White.copy(alpha = 0.75f),
+                                modifier = Modifier.size(17.dp)
+                            )
+                        }
+                    }
+                }
             }
 
             // Middle-Left: Realistic Gold EMV Chip + Contactless Waves Icon

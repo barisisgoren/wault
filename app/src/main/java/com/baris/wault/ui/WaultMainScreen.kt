@@ -68,6 +68,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -86,11 +87,14 @@ import com.baris.wault.data.nfc.SilentSwitchCapability
 import com.baris.wault.data.vault.LoyaltyCardEntity
 import com.baris.wault.data.vault.WaultBarcodeFormat
 import com.baris.wault.ui.components.AddCardBottomSheet
+import com.baris.wault.ui.components.CategoryFilterBar
 import com.baris.wault.ui.components.EditBankCardSheet
 import com.baris.wault.ui.components.FullscreenBarcodeDialog
 import com.baris.wault.ui.components.PassGridSection
 import com.baris.wault.ui.components.PaymentStackSection
+import com.baris.wault.ui.components.WaultCardCategory
 import com.baris.wault.ui.components.WaultFloatingPill
+import com.baris.wault.ui.components.WaultOtherSection
 import com.baris.wault.ui.components.WaultTab
 import com.baris.wault.ui.components.WaultTopBar
 import androidx.compose.foundation.rememberScrollState
@@ -148,19 +152,73 @@ fun WaultMainScreen(
     onMovePassToTop: (LoyaltyCardEntity) -> Unit,
     onReorderPasses: (List<LoyaltyCardEntity>) -> Unit,
     onOpenFullscreenPass: (LoyaltyCardEntity) -> Unit,
-    onCloseFullscreenPass: () -> Unit
+    onCloseFullscreenPass: () -> Unit,
+    onToggleFavoriteBank: (BankPaymentApp) -> Unit = {}
 ) {
     var isUnifiedActionSheetVisible by rememberSaveable { mutableStateOf(false) }
     var selectedTab by rememberSaveable { mutableStateOf(WaultTab.ALL) }
+    var isSearchActive by rememberSaveable { mutableStateOf(false) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var selectedCategory by rememberSaveable { mutableStateOf(WaultCardCategory.ALL) }
+
+    val filteredBanks = remember(uiState.installedBanks, searchQuery, selectedCategory) {
+        var list = uiState.installedBanks
+        if (searchQuery.isNotBlank()) {
+            list = list.filter {
+                it.displayTitle.contains(searchQuery, ignoreCase = true) ||
+                    it.cardNumberSuffix?.contains(searchQuery) == true
+            }
+        }
+        when (selectedCategory) {
+            WaultCardCategory.ALL, WaultCardCategory.BANK_CREDIT -> list
+            WaultCardCategory.TRANSIT -> list.filter {
+                it.displayTitle.contains("kent", ignoreCase = true) ||
+                    it.displayTitle.contains("kart", ignoreCase = true) ||
+                    it.displayTitle.contains("ulaşım", ignoreCase = true) ||
+                    it.packageName.contains("kentkart", ignoreCase = true)
+            }
+            WaultCardCategory.MEMBERSHIPS -> emptyList()
+        }
+    }
+
+    val filteredPasses = remember(uiState.loyaltyCards, searchQuery, selectedCategory) {
+        var list = uiState.loyaltyCards
+        if (searchQuery.isNotBlank()) {
+            list = list.filter {
+                it.title.contains(searchQuery, ignoreCase = true) ||
+                    it.subtitle.contains(searchQuery, ignoreCase = true) ||
+                    it.barcodeValue.contains(searchQuery)
+            }
+        }
+        when (selectedCategory) {
+            WaultCardCategory.ALL -> list
+            WaultCardCategory.BANK_CREDIT -> emptyList()
+            WaultCardCategory.TRANSIT -> list.filter {
+                it.title.contains("kart", ignoreCase = true) ||
+                    it.title.contains("ulaşım", ignoreCase = true) ||
+                    it.title.contains("bilet", ignoreCase = true) ||
+                    it.title.contains("metro", ignoreCase = true) ||
+                    it.title.contains("ego", ignoreCase = true)
+            }
+            WaultCardCategory.MEMBERSHIPS -> list.filterNot {
+                it.title.contains("kentkart", ignoreCase = true) ||
+                    it.title.contains("ulaşım", ignoreCase = true)
+            }
+        }
+    }
 
     Scaffold(
         containerColor = WaultAmoledBlack,
         topBar = {
             WaultTopBar(
-                capability = uiState.shizukuCapability,
-                onStatusPillClick = onShizukuPillClick,
-                onQuickAddClick = { onOpenAddPassSheet(null) },
-                onMenuClick = { isUnifiedActionSheetVisible = true }
+                isSearchActive = isSearchActive,
+                searchQuery = searchQuery,
+                onSearchQueryChange = { searchQuery = it },
+                onToggleSearch = {
+                    isSearchActive = !isSearchActive
+                    if (!isSearchActive) searchQuery = ""
+                },
+                onQuickAddClick = { onOpenAddPassSheet(null) }
             )
         }
     ) { innerPadding ->
@@ -253,28 +311,39 @@ fun WaultMainScreen(
                 ) { tab ->
                     when (tab) {
                         WaultTab.ALL -> {
-                            PaymentStackSection(
-                                banks = uiState.installedBanks,
-                                hiddenCount = uiState.hiddenBanks.size,
-                                activeBank = uiState.activeBank,
-                                isScanning = uiState.isScanningBanks,
-                                onSelectBank = onSelectBank,
-                                onEditBank = onOpenEditBankSheet,
-                                onActivateTemp60s = onActivateTemp60s,
-                                onReorderBanks = onReorderBanks,
-                                onRefreshBanks = onRefreshBanks,
-                                onOpenHiddenBanks = onOpenHiddenBanksSheet,
-                                isScrollable = true,
-                                modifier = Modifier.fillMaxSize(),
-                                bottomContent = {
-                                    PassGridSection(
-                                        passes = uiState.loyaltyCards,
-                                        onPassClick = onOpenFullscreenPass,
-                                        onPassEdit = { card -> onOpenAddPassSheet(card) },
-                                        onAddPassClick = { onOpenAddPassSheet(null) }
-                                    )
-                                }
-                            )
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                // Horizontal Category Pills (Tüm Kartlar, Banka & Kredi, Ulaşım, Üyelikler & Diğer)
+                                CategoryFilterBar(
+                                    selectedCategory = selectedCategory,
+                                    onCategorySelected = { selectedCategory = it }
+                                )
+
+                                PaymentStackSection(
+                                    banks = filteredBanks,
+                                    hiddenCount = uiState.hiddenBanks.size,
+                                    activeBank = uiState.activeBank,
+                                    isScanning = uiState.isScanningBanks,
+                                    onSelectBank = onSelectBank,
+                                    onEditBank = onOpenEditBankSheet,
+                                    onActivateTemp60s = onActivateTemp60s,
+                                    onReorderBanks = onReorderBanks,
+                                    onToggleFavorite = onToggleFavoriteBank,
+                                    onRefreshBanks = onRefreshBanks,
+                                    onOpenHiddenBanks = onOpenHiddenBanksSheet,
+                                    isScrollable = true,
+                                    modifier = Modifier.weight(1f),
+                                    bottomContent = {
+                                        if (filteredPasses.isNotEmpty()) {
+                                            PassGridSection(
+                                                passes = filteredPasses,
+                                                onPassClick = onOpenFullscreenPass,
+                                                onPassEdit = { card -> onOpenAddPassSheet(card) },
+                                                onAddPassClick = { onOpenAddPassSheet(null) }
+                                            )
+                                        }
+                                    }
+                                )
+                            }
                         }
 
                         WaultTab.PAYMENT -> {
@@ -287,6 +356,7 @@ fun WaultMainScreen(
                                 onEditBank = onOpenEditBankSheet,
                                 onActivateTemp60s = onActivateTemp60s,
                                 onReorderBanks = onReorderBanks,
+                                onToggleFavorite = onToggleFavoriteBank,
                                 onRefreshBanks = onRefreshBanks,
                                 onOpenHiddenBanks = onOpenHiddenBanksSheet,
                                 isScrollable = false,
@@ -295,21 +365,16 @@ fun WaultMainScreen(
                             )
                         }
 
-                        WaultTab.PASSES -> {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .verticalScroll(rememberScrollState())
-                                    .padding(horizontal = 20.dp, vertical = 8.dp)
-                            ) {
-                                PassGridSection(
-                                    passes = uiState.loyaltyCards,
-                                    onPassClick = onOpenFullscreenPass,
-                                    onPassEdit = { card -> onOpenAddPassSheet(card) },
-                                    onAddPassClick = { onOpenAddPassSheet(null) }
-                                )
-                                Spacer(modifier = Modifier.height(110.dp))
-                            }
+                        WaultTab.OTHER -> {
+                            WaultOtherSection(
+                                capability = uiState.shizukuCapability,
+                                hiddenBanksCount = uiState.hiddenBanks.size,
+                                onOpenShizukuDialog = onShizukuPillClick,
+                                onRequestShizukuPermission = onRequestShizukuPermission,
+                                onOpenHiddenBanks = onOpenHiddenBanksSheet,
+                                onRefreshBanks = onRefreshBanks,
+                                modifier = Modifier.fillMaxSize()
+                            )
                         }
                     }
                 }

@@ -98,7 +98,8 @@ class MainActivity : ComponentActivity() {
                     onMovePassToTop = viewModel::moveLoyaltyCardToTop,
                     onReorderPasses = viewModel::reorderLoyaltyCards,
                     onOpenFullscreenPass = viewModel::openFullscreenPass,
-                    onCloseFullscreenPass = viewModel::closeFullscreenPass
+                    onCloseFullscreenPass = viewModel::closeFullscreenPass,
+                    onToggleFavoriteBank = viewModel::toggleFavoriteBank
                 )
             }
         }
