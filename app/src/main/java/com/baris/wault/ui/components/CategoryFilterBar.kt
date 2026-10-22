@@ -63,12 +63,12 @@ fun CategoryFilterBar(
             val shape = RoundedCornerShape(12.dp)
 
             val bgColor by animateColorAsState(
-                targetValue = if (isSelected) Color.White.copy(alpha = 0.22f) else Color(0xFF1C1C1E).copy(alpha = 0.65f),
+                targetValue = if (isSelected) Color.White else Color(0xFF1C1C1E),
                 animationSpec = spring(dampingRatio = 0.82f, stiffness = 420f),
                 label = "CatBg"
             )
             val borderColor by animateColorAsState(
-                targetValue = if (isSelected) Color.White.copy(alpha = 0.38f) else Color.White.copy(alpha = 0.08f),
+                targetValue = if (isSelected) Color.White else Color(0xFF2C2C2E),
                 animationSpec = spring(dampingRatio = 0.82f, stiffness = 420f),
                 label = "CatBorder"
             )
@@ -77,7 +77,7 @@ fun CategoryFilterBar(
                 modifier = Modifier
                     .clip(shape)
                     .background(bgColor)
-                    .border(width = 0.9.dp, color = borderColor, shape = shape)
+                    .border(width = 1.dp, color = borderColor, shape = shape)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -94,9 +94,9 @@ fun CategoryFilterBar(
                 Text(
                     text = category.title,
                     style = MaterialTheme.typography.labelMedium.copy(
-                        color = if (isSelected) Color.White else Color.White.copy(alpha = 0.60f),
+                        color = if (isSelected) Color.Black else Color(0xFF8E8E93),
                         fontSize = 13.sp,
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         letterSpacing = (-0.1).sp
                     )
                 )
