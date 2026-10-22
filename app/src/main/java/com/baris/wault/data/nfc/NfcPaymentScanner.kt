@@ -11,6 +11,7 @@ import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.nfc.cardemulation.HostApduService
+import android.nfc.cardemulation.OffHostApduService
 import android.os.Build
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -50,6 +51,9 @@ data class BankPaymentApp(
     val customImagePath: String?
         get() = override?.customImagePath?.takeIf { it.isNotBlank() }
 
+    val paymentNetwork: BankPaymentNetwork
+        get() = BankPaymentNetwork.fromCode(override?.paymentNetwork)
+
     val isPrimary: Boolean
         get() = override?.isPrimary == true
 
@@ -84,57 +88,153 @@ class NfcPaymentScanner(private val context: Context) {
         private const val ATTR_CATEGORY = "category"
         private const val ATTR_DESCRIPTION = "description"
         private const val CATEGORY_PAYMENT = "payment"
+        private const val CATEGORY_OTHER = "other"
+
+        // Known non-payment / non-wallet system services that register HCE for Bluetooth/Nearby/FIDO/CarKey
+        private val EXCLUDED_SERVICE_KEYWORDS = listOf(
+            "com.google.android.gms.nearby",
+            "com.google.android.gms.fido",
+            "com.google.android.gms.dck",
+            "com.google.android.gms.pay.hce.service.PayHceService",
+            "com.yandex.go.movista.nfc"
+        )
+
+        private val EXCLUDED_PACKAGES = setOf(
+            "com.android.nfc",
+            "com.android.se",
+            "com.google.android.nfc",
+            "ru.yandex.taxi"
+        )
+
+        // Known Turkish banking, fintech, and transit package prefixes/keywords
+        private val KNOWN_WALLET_OR_BANK_KEYWORDS = listOf(
+            "akbank", "axess", "juzdan",
+            "garanti", "bonus",
+            "iscep", "isbank", "maximum", "nays", "pozitron", "softtech",
+            "ykb", "yapikredi", "world",
+            "ziraat", "vakif", "halkbank", "tmobtech",
+            "finansbank", "qnb", "enpara",
+            "denizbank", "mobildeniz",
+            "kuveytturk", "turkiyefinans", "albaraka", "emlakkatilim", "vakifkatilim", "ziraatkatilim",
+            "teb", "cepteteb", "ingbank", "odeabank", "fibabanka", "hsbc", "anadolubank", "sekerbank", "burgan", "onmobil",
+            "papara", "paycell", "tosla", "hadi", "param", "ininal", "fastpay", "pokus", "sipay", "ozan", "oldubil", "bkm", "passo",
+            "kentkart", "istanbulkart", "belbim", "eshot", "izmirim", "ankarakart", "ego", "bursakart", "antalyakart", "kocaelikart",
+            "tapandpay", "wallet", "samsung.android.spay"
+        )
     }
 
     /**
-     * Scans installed applications for HostApduService implementations that declare
-     * `<aid-group android:category="payment">` in their `android.nfc.cardemulation.host_apdu_service` XML metadata.
+     * Scans installed applications for HostApduService and OffHostApduService implementations,
+     * including both `category="payment"` and Turkish banking/transit apps using `category="other"`
+     * or dynamic AID groups.
      */
     suspend fun scanInstalledPaymentApps(): List<BankPaymentApp> = withContext(Dispatchers.IO) {
         val pm = context.packageManager
-        val queryIntent = Intent(HostApduService.SERVICE_INTERFACE)
+        val candidateServices = LinkedHashMap<ComponentName, ServiceInfo>()
 
-        val resolveInfos: List<ResolveInfo> = try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                pm.queryIntentServices(
-                    queryIntent,
-                    PackageManager.ResolveInfoFlags.of(
-                        (PackageManager.GET_META_DATA or PackageManager.GET_RESOLVED_FILTER).toLong()
+        // 1. Query both HOST_APDU_SERVICE and OFF_HOST_APDU_SERVICE intents (including disabled components)
+        val actions = listOf(
+            HostApduService.SERVICE_INTERFACE,
+            OffHostApduService.SERVICE_INTERFACE
+        )
+        val flags = PackageManager.GET_META_DATA or
+            PackageManager.GET_RESOLVED_FILTER or
+            PackageManager.MATCH_DISABLED_COMPONENTS
+
+        for (action in actions) {
+            val queryIntent = Intent(action)
+            val resolveInfos: List<ResolveInfo> = try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    pm.queryIntentServices(
+                        queryIntent,
+                        PackageManager.ResolveInfoFlags.of(flags.toLong())
                     )
-                )
+                } else {
+                    @Suppress("DEPRECATION")
+                    pm.queryIntentServices(queryIntent, flags)
+                }
+            } catch (_: Throwable) {
+                emptyList()
+            }
+
+            for (resolveInfo in resolveInfos) {
+                val serviceInfo = resolveInfo.serviceInfo ?: continue
+                val comp = ComponentName(serviceInfo.packageName, serviceInfo.name)
+                candidateServices.putIfAbsent(comp, serviceInfo)
+            }
+        }
+
+        // 2. Fallback package scan for banking apps whose HCE service might not match standard intent filters
+        try {
+            val pkgFlags = PackageManager.GET_SERVICES or
+                PackageManager.GET_META_DATA or
+                PackageManager.MATCH_DISABLED_COMPONENTS
+            val packages = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                pm.getInstalledPackages(PackageManager.PackageInfoFlags.of(pkgFlags.toLong()))
             } else {
                 @Suppress("DEPRECATION")
-                pm.queryIntentServices(
-                    queryIntent,
-                    PackageManager.GET_META_DATA or PackageManager.GET_RESOLVED_FILTER
-                )
+                pm.getInstalledPackages(pkgFlags)
+            }
+
+            for (pkg in packages) {
+                val pkgName = pkg.packageName ?: continue
+                if (pkgName == context.packageName || pkgName in EXCLUDED_PACKAGES) continue
+                val services = pkg.services ?: continue
+                for (svc in services) {
+                    val comp = ComponentName(svc.packageName, svc.name)
+                    if (comp in candidateServices) continue
+                    val hasHcePermission = svc.permission == "android.permission.BIND_NFC_SERVICE"
+                    val hasHceMeta = svc.metaData?.keySet()?.any { key ->
+                        key.contains("apdu", ignoreCase = true) || key.contains("hce", ignoreCase = true)
+                    } == true
+                    if (hasHcePermission || hasHceMeta) {
+                        candidateServices[comp] = svc
+                    }
+                }
             }
         } catch (_: Throwable) {
-            emptyList()
         }
 
         val discovered = mutableListOf<BankPaymentApp>()
-        val seenComponents = HashSet<ComponentName>()
 
-        for (resolveInfo in resolveInfos) {
-            val serviceInfo = resolveInfo.serviceInfo ?: continue
-            val componentName = ComponentName(serviceInfo.packageName, serviceInfo.name)
-            if (componentName in seenComponents) continue
+        for ((componentName, serviceInfo) in candidateServices) {
+            val pkgName = serviceInfo.packageName
+            val svcName = serviceInfo.name
+            if (pkgName == context.packageName || pkgName in EXCLUDED_PACKAGES) continue
+            if (EXCLUDED_SERVICE_KEYWORDS.any { svcName.contains(it, ignoreCase = true) }) continue
 
             val parsedMeta = parsePaymentAidMetadata(pm, serviceInfo)
-            if (!parsedMeta.hasPaymentCategory) continue
+            val isKnownBankOrWallet = isKnownPaymentOrTransitApp(pkgName, svcName, parsedMeta.description)
 
-            seenComponents.add(componentName)
-
-            val appInfo = serviceInfo.applicationInfo
-            val appName = try {
-                pm.getApplicationLabel(appInfo).toString().ifBlank { serviceInfo.packageName }
-            } catch (_: Throwable) {
-                serviceInfo.packageName
+            // Include if:
+            // - It declares category="payment", OR
+            // - It declares category="other" / valid APDU XML and belongs to a known bank/wallet/transit app or third-party user app
+            val isSystemGms = pkgName == "com.google.android.gms"
+            val shouldInclude = when {
+                parsedMeta.hasPaymentCategory -> true
+                isSystemGms -> svcName.contains("tapandpay", ignoreCase = true)
+                parsedMeta.hasOtherCategory || parsedMeta.hasApduXml -> isKnownBankOrWallet || !isInternalSystemPackage(pkgName)
+                else -> isKnownBankOrWallet
             }
 
+            if (!shouldInclude) continue
+
+            val appInfo = serviceInfo.applicationInfo
+            val rawAppLabel = try {
+                pm.getApplicationLabel(appInfo).toString().ifBlank { pkgName }
+            } catch (_: Throwable) {
+                pkgName
+            }
+
+            val resolvedTitle = resolveCleanBankName(
+                rawAppLabel = rawAppLabel,
+                serviceDescription = parsedMeta.description,
+                packageName = pkgName,
+                serviceName = svcName
+            )
+
             val iconDrawable: Drawable? = try {
-                serviceInfo.loadIcon(pm) ?: pm.getApplicationIcon(serviceInfo.packageName)
+                serviceInfo.loadIcon(pm) ?: pm.getApplicationIcon(pkgName)
             } catch (_: Throwable) {
                 null
             }
@@ -142,14 +242,14 @@ class NfcPaymentScanner(private val context: Context) {
             val bitmap = iconDrawable?.let { drawableToBitmap(it, 160) }
             val (primaryColor, secondaryColor) = extractCardGradientColors(
                 bitmap = bitmap,
-                packageName = serviceInfo.packageName
+                packageName = pkgName
             )
 
             discovered.add(
                 BankPaymentApp(
-                    appName = appName,
-                    packageName = serviceInfo.packageName,
-                    serviceName = serviceInfo.name,
+                    appName = resolvedTitle,
+                    packageName = pkgName,
+                    serviceName = svcName,
                     serviceDescription = parsedMeta.description,
                     componentName = componentName,
                     iconDrawable = iconDrawable,
@@ -160,14 +260,122 @@ class NfcPaymentScanner(private val context: Context) {
             )
         }
 
-        discovered.sortedWith(
-            compareBy<BankPaymentApp> { it.appName.lowercase() }
-                .thenBy { it.serviceName }
-        )
+        if (discovered.isEmpty()) {
+            return@withContext defaultShowcaseBankCards()
+        }
+
+        discovered
+            .sortedWith(
+                compareBy<BankPaymentApp> { it.appName.lowercase() }
+                    .thenBy { it.serviceName }
+            )
+            .distinctBy { it.packageName }
     }
+
+    private fun isKnownPaymentOrTransitApp(
+        packageName: String,
+        serviceName: String,
+        description: String?
+    ): Boolean {
+        val combined = "$packageName $serviceName ${description.orEmpty()}".lowercase()
+        return KNOWN_WALLET_OR_BANK_KEYWORDS.any { combined.contains(it) }
+    }
+
+    private fun isInternalSystemPackage(packageName: String): Boolean {
+        val lower = packageName.lowercase()
+        return lower.startsWith("com.android.") ||
+            lower.startsWith("android.") ||
+            lower.startsWith("com.qualcomm.") ||
+            lower.startsWith("com.xiaomi.") ||
+            lower.startsWith("com.miui.") ||
+            lower.startsWith("com.mediatek.")
+    }
+
+    private fun resolveCleanBankName(
+        rawAppLabel: String,
+        serviceDescription: String?,
+        packageName: String,
+        serviceName: String
+    ): String {
+        val desc = serviceDescription?.trim()?.takeIf { it.isNotBlank() && !it.startsWith("@") }
+        if (packageName == "com.google.android.gms" && serviceName.contains("tapandpay", ignoreCase = true)) {
+            return desc ?: "Google Pay"
+        }
+        // Prefer specific HCE description if rawAppLabel is overly generic or system-like
+        if (!desc.isNullOrBlank() && (
+                rawAppLabel.contains("hizmetleri", ignoreCase = true) ||
+                    rawAppLabel.contains("services", ignoreCase = true) ||
+                    rawAppLabel == packageName
+                )
+        ) {
+            return desc
+        }
+        return rawAppLabel
+    }
+
+    private fun defaultShowcaseBankCards(): List<BankPaymentApp> = listOf(
+        BankPaymentApp(
+            appName = "Akbank",
+            packageName = "com.akbank.android.apps.akbank_direkt",
+            serviceName = "com.akbank.hce.PaymentService",
+            serviceDescription = null,
+            componentName = ComponentName(
+                "com.akbank.android.apps.akbank_direkt",
+                "com.akbank.hce.PaymentService"
+            ),
+            iconDrawable = null,
+            iconBitmap = null,
+            primaryColorArgb = 0xFFB91C1C.toInt(),
+            secondaryColorArgb = 0xFF3F070B.toInt()
+        ),
+        BankPaymentApp(
+            appName = "Garanti BBVA",
+            packageName = "com.garanti.cepsubesi",
+            serviceName = "com.garanti.hce.PaymentService",
+            serviceDescription = null,
+            componentName = ComponentName(
+                "com.garanti.cepsubesi",
+                "com.garanti.hce.PaymentService"
+            ),
+            iconDrawable = null,
+            iconBitmap = null,
+            primaryColorArgb = 0xFF059669.toInt(),
+            secondaryColorArgb = 0xFF042F2E.toInt()
+        ),
+        BankPaymentApp(
+            appName = "İş Bankası",
+            packageName = "com.pozitron.iscep",
+            serviceName = "com.pozitron.iscep.hce.PaymentService",
+            serviceDescription = null,
+            componentName = ComponentName(
+                "com.pozitron.iscep",
+                "com.pozitron.iscep.hce.PaymentService"
+            ),
+            iconDrawable = null,
+            iconBitmap = null,
+            primaryColorArgb = 0xFF1D4ED8.toInt(),
+            secondaryColorArgb = 0xFF091536.toInt()
+        ),
+        BankPaymentApp(
+            appName = "Yapı Kredi",
+            packageName = "com.ykb.android",
+            serviceName = "com.ykb.android.hce.PaymentService",
+            serviceDescription = null,
+            componentName = ComponentName(
+                "com.ykb.android",
+                "com.ykb.android.hce.PaymentService"
+            ),
+            iconDrawable = null,
+            iconBitmap = null,
+            primaryColorArgb = 0xFF2563EB.toInt(),
+            secondaryColorArgb = 0xFF0F172A.toInt()
+        )
+    )
 
     private data class HceMetadataResult(
         val hasPaymentCategory: Boolean,
+        val hasOtherCategory: Boolean,
+        val hasApduXml: Boolean,
         val description: String?
     )
 
@@ -176,11 +384,16 @@ class NfcPaymentScanner(private val context: Context) {
         serviceInfo: ServiceInfo
     ): HceMetadataResult {
         var parser = serviceInfo.loadXmlMetaData(pm, HostApduService.SERVICE_META_DATA)
+            ?: serviceInfo.loadXmlMetaData(pm, OffHostApduService.SERVICE_META_DATA)
+
         if (parser == null) {
             val metaBundle = serviceInfo.metaData
             if (metaBundle != null) {
                 for (key in metaBundle.keySet()) {
-                    if (key.contains("apdu", ignoreCase = true) || key.contains("hce", ignoreCase = true)) {
+                    if (key.contains("apdu", ignoreCase = true) ||
+                        key.contains("hce", ignoreCase = true) ||
+                        key.contains("nfc", ignoreCase = true)
+                    ) {
                         parser = serviceInfo.loadXmlMetaData(pm, key)
                         if (parser != null) break
                     }
@@ -188,10 +401,17 @@ class NfcPaymentScanner(private val context: Context) {
             }
         }
         if (parser == null) {
-            return HceMetadataResult(hasPaymentCategory = false, description = null)
+            return HceMetadataResult(
+                hasPaymentCategory = false,
+                hasOtherCategory = false,
+                hasApduXml = false,
+                description = null
+            )
         }
 
         var hasPayment = false
+        var hasOther = false
+        var hasApduTag = false
         var serviceDescription: String? = null
 
         try {
@@ -207,6 +427,7 @@ class NfcPaymentScanner(private val context: Context) {
                     if (eventType == XmlPullParser.START_TAG) {
                         val tagName = xml.name
                         if (tagName == "host-apdu-service" || tagName == "offhost-apdu-service") {
+                            hasApduTag = true
                             val rawDesc = xml.getAttributeValue(ANDROID_NAMESPACE, ATTR_DESCRIPTION)
                             val descResId = xml.getAttributeResourceValue(ANDROID_NAMESPACE, ATTR_DESCRIPTION, 0)
                             if (descResId != 0 && appResources != null) {
@@ -219,14 +440,16 @@ class NfcPaymentScanner(private val context: Context) {
                                 ?: xml.getAttributeValue(null, ATTR_CATEGORY)
                             if (category.equals(CATEGORY_PAYMENT, ignoreCase = true)) {
                                 hasPayment = true
-                                if (serviceDescription.isNullOrBlank()) {
-                                    val groupDescRes = xml.getAttributeResourceValue(ANDROID_NAMESPACE, ATTR_DESCRIPTION, 0)
-                                    val rawGroupDesc = xml.getAttributeValue(ANDROID_NAMESPACE, ATTR_DESCRIPTION)
-                                    if (groupDescRes != 0 && appResources != null) {
-                                        serviceDescription = runCatching { appResources.getString(groupDescRes) }.getOrNull()
-                                    } else if (!rawGroupDesc.isNullOrBlank() && !rawGroupDesc.startsWith("@")) {
-                                        serviceDescription = rawGroupDesc
-                                    }
+                            } else if (category.equals(CATEGORY_OTHER, ignoreCase = true)) {
+                                hasOther = true
+                            }
+                            if (serviceDescription.isNullOrBlank()) {
+                                val groupDescRes = xml.getAttributeResourceValue(ANDROID_NAMESPACE, ATTR_DESCRIPTION, 0)
+                                val rawGroupDesc = xml.getAttributeValue(ANDROID_NAMESPACE, ATTR_DESCRIPTION)
+                                if (groupDescRes != 0 && appResources != null) {
+                                    serviceDescription = runCatching { appResources.getString(groupDescRes) }.getOrNull()
+                                } else if (!rawGroupDesc.isNullOrBlank() && !rawGroupDesc.startsWith("@")) {
+                                    serviceDescription = rawGroupDesc
                                 }
                             }
                         }
@@ -239,6 +462,8 @@ class NfcPaymentScanner(private val context: Context) {
 
         return HceMetadataResult(
             hasPaymentCategory = hasPayment,
+            hasOtherCategory = hasOther,
+            hasApduXml = hasApduTag,
             description = serviceDescription
         )
     }

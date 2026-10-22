@@ -57,7 +57,7 @@ fun LoyaltyCardItem(
     modifier: Modifier = Modifier
 ) {
     val customBitmap = rememberStoredImageBitmap(card.customImagePath)
-    val shape = RoundedCornerShape(20.dp)
+    val shape = RoundedCornerShape(16.dp)
 
     val baseColor = Color(card.cardColorHex)
     val darkenedColor = Color(

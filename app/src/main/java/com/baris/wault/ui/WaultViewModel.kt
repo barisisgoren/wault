@@ -308,6 +308,7 @@ class WaultViewModel(
                     cardNumberSuffix = currentActive.override?.cardNumberSuffix,
                     customColorHex = currentActive.override?.customColorHex,
                     customImagePath = currentActive.override?.customImagePath,
+                    paymentNetwork = currentActive.override?.paymentNetwork,
                     isPrimary = true,
                     isHidden = false,
                     showToast = false
@@ -402,6 +403,7 @@ class WaultViewModel(
         cardNumberSuffix: String?,
         customColorHex: Long?,
         customImagePath: String?,
+        paymentNetwork: String?,
         isPrimary: Boolean,
         isHidden: Boolean,
         showToast: Boolean = true
@@ -431,6 +433,7 @@ class WaultViewModel(
                 cardNumberSuffix = cleanSuffix,
                 customColorHex = customColorHex,
                 customImagePath = customImagePath?.takeIf { it.isNotBlank() },
+                paymentNetwork = paymentNetwork?.takeIf { it.isNotBlank() },
                 isPrimary = isPrimary && !isHidden,
                 isHidden = isHidden,
                 sortOrder = previousOverride?.sortOrder ?: bank.sortOrder
@@ -457,6 +460,7 @@ class WaultViewModel(
             cardNumberSuffix = current?.cardNumberSuffix,
             customColorHex = current?.customColorHex,
             customImagePath = current?.customImagePath,
+            paymentNetwork = current?.paymentNetwork,
             isPrimary = if (hidden) false else (current?.isPrimary == true),
             isHidden = hidden
         )

@@ -8,6 +8,24 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 
+enum class BankPaymentNetwork(
+    val code: String,
+    val label: String
+) {
+    AUTO("AUTO", "Otomatik"),
+    VISA("VISA", "VISA"),
+    MASTERCARD("MASTERCARD", "Mastercard"),
+    TROY("TROY", "TROY"),
+    AMEX("AMEX", "Amex");
+
+    companion object {
+        fun fromCode(code: String?): BankPaymentNetwork {
+            if (code.isNullOrBlank()) return AUTO
+            return entries.firstOrNull { it.code.equals(code.trim(), ignoreCase = true) } ?: AUTO
+        }
+    }
+}
+
 @Entity(tableName = "bank_card_overrides")
 data class BankCardOverrideEntity(
     @PrimaryKey
@@ -16,6 +34,7 @@ data class BankCardOverrideEntity(
     val cardNumberSuffix: String? = null,
     val customColorHex: Long? = null,
     val customImagePath: String? = null,
+    val paymentNetwork: String? = null,
     val isPrimary: Boolean = false,
     val isHidden: Boolean = false,
     val sortOrder: Int = 0

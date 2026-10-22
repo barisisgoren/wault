@@ -192,8 +192,9 @@ fun PaymentReadyRadarIndicator(
 }
 
 /**
- * Celebratory Apple Pay / Google Wallet style Payment Success animation with
- * progressive checkmark drawing, shockwave ripples, and particle burst.
+ * Minimal, professional Apple Pay style Payment Success indicator.
+ * Matches the exact geometry of the NFC prompt circle so the transition feels seamless:
+ * a crisp circular badge with a smooth progressive checkmark stroke and clean typography.
  */
 @Composable
 fun PaymentSuccessAnimationCard(
@@ -203,173 +204,151 @@ fun PaymentSuccessAnimationCard(
 ) {
     val haptics = LocalHapticFeedback.current
 
-    val badgeScale = remember { Animatable(0f) }
+    val circleScale = remember { Animatable(0.84f) }
+    val circleAlpha = remember { Animatable(0f) }
+    val ringProgress = remember { Animatable(0f) }
     val checkProgress = remember { Animatable(0f) }
-    val rippleProgress = remember { Animatable(0f) }
-    val contentAlpha = remember { Animatable(0f) }
+    val textAlpha = remember { Animatable(0f) }
 
     LaunchedEffect(cardTitle) {
         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
         launch {
-            badgeScale.animateTo(
+            circleAlpha.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+            )
+        }
+        launch {
+            circleScale.animateTo(
                 targetValue = 1f,
                 animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMediumLow
+                    dampingRatio = 0.78f,
+                    stiffness = Spring.StiffnessMedium
                 )
             )
         }
         launch {
-            delay(90)
-            contentAlpha.animateTo(
+            ringProgress.animateTo(
                 targetValue = 1f,
-                animationSpec = tween(durationMillis = 280)
+                animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)
             )
         }
         launch {
-            delay(120)
-            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            delay(110)
             checkProgress.animateTo(
                 targetValue = 1f,
-                animationSpec = tween(durationMillis = 480, easing = FastOutSlowInEasing)
+                animationSpec = tween(durationMillis = 340, easing = FastOutSlowInEasing)
             )
         }
         launch {
             delay(80)
-            rippleProgress.animateTo(
+            textAlpha.animateTo(
                 targetValue = 1f,
-                animationSpec = tween(durationMillis = 950, easing = FastOutSlowInEasing)
+                animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing)
             )
         }
 
-        delay(2100)
+        delay(1450)
         onAnimationFinished()
     }
 
-    Surface(
-        shape = RoundedCornerShape(28.dp),
-        color = Color(0xFF0D1712).copy(alpha = 0.96f),
-        border = androidx.compose.foundation.BorderStroke(
-            width = 1.5.dp,
-            brush = Brush.linearGradient(
-                colors = listOf(WaultPrimaryMint, WaultPrimaryCyan)
-            )
-        ),
+    val accentGreen = Color(0xFF30D158)
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(28.dp))
-            .clickable(onClick = onAnimationFinished)
+            .clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null,
+                onClick = onAnimationFinished
+            )
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 22.dp)
+                .size(68.dp)
+                .scale(circleScale.value),
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier.size(116.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                // Expanding shockwave rings + radial particle burst
-                Canvas(modifier = Modifier.matchParentSize()) {
-                    val center = Offset(size.width / 2f, size.height / 2f)
-                    val maxR = size.minDimension / 2f
-                    val rp = rippleProgress.value
+            Canvas(modifier = Modifier.size(54.dp)) {
+                val strokeWidthPx = 2.dp.toPx()
+                val radius = (size.minDimension - strokeWidthPx) / 2f
+                val center = Offset(size.width / 2f, size.height / 2f)
 
-                    if (rp > 0f) {
-                        drawCircle(
-                            color = WaultPrimaryMint.copy(alpha = (1f - rp) * 0.55f),
-                            radius = maxR * (0.5f + rp * 0.55f),
-                            center = center,
-                            style = Stroke(width = 3.dp.toPx())
-                        )
-                        drawCircle(
-                            color = WaultPrimaryCyan.copy(alpha = (1f - rp) * 0.4f),
-                            radius = maxR * (0.38f + rp * 0.45f),
-                            center = center,
-                            style = Stroke(width = 2.dp.toPx())
-                        )
+                // Subtle dark elevated fill matching the NFC prompt circle
+                drawCircle(
+                    color = Color(0xFF1C1C1E).copy(alpha = circleAlpha.value),
+                    radius = radius,
+                    center = center
+                )
 
-                        // 12 radial celebration particles
-                        val particleCount = 12
-                        for (i in 0 until particleCount) {
-                            val angleRad = Math.toRadians((i * (360.0 / particleCount)))
-                            val dist = maxR * (0.48f + rp * 0.52f)
-                            val px = center.x + (cos(angleRad) * dist).toFloat()
-                            val py = center.y + (sin(angleRad) * dist).toFloat()
-                            drawCircle(
-                                color = if (i % 2 == 0) {
-                                    WaultPrimaryMint.copy(alpha = (1f - rp) * 0.9f)
-                                } else {
-                                    WaultPrimaryCyan.copy(alpha = (1f - rp) * 0.9f)
-                                },
-                                radius = (4.dp.toPx() * (1f - rp * 0.6f)).coerceAtLeast(1f),
-                                center = Offset(px, py)
-                            )
-                        }
+                // Soft inner tint
+                drawCircle(
+                    color = accentGreen.copy(alpha = 0.14f * circleAlpha.value),
+                    radius = radius,
+                    center = center
+                )
+
+                // Smoothly drawn perimeter ring
+                drawArc(
+                    color = accentGreen.copy(alpha = circleAlpha.value),
+                    startAngle = -90f,
+                    sweepAngle = 360f * ringProgress.value,
+                    useCenter = false,
+                    style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round)
+                )
+
+                // Minimal progressive checkmark
+                if (checkProgress.value > 0f) {
+                    val checkPath = Path().apply {
+                        moveTo(size.width * 0.30f, size.height * 0.52f)
+                        lineTo(size.width * 0.45f, size.height * 0.66f)
+                        lineTo(size.width * 0.72f, size.height * 0.37f)
                     }
-                }
-
-                // Glowing Emerald Circle + Animated Vector Checkmark
-                Box(
-                    modifier = Modifier
-                        .size(72.dp)
-                        .scale(badgeScale.value)
-                        .clip(CircleShape)
-                        .background(
-                            brush = Brush.linearGradient(
-                                colors = listOf(WaultPrimaryMint, Color(0xFF16A34A))
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Canvas(modifier = Modifier.size(38.dp)) {
-                        val fullCheckPath = Path().apply {
-                            moveTo(size.width * 0.18f, size.height * 0.52f)
-                            lineTo(size.width * 0.43f, size.height * 0.76f)
-                            lineTo(size.width * 0.84f, size.height * 0.26f)
-                        }
-                        val pathMeasure = PathMeasure()
-                        pathMeasure.setPath(fullCheckPath, false)
-                        val partialPath = Path()
-                        pathMeasure.getSegment(
-                            0f,
-                            pathMeasure.length * checkProgress.value,
-                            partialPath,
-                            true
+                    val measure = PathMeasure()
+                    measure.setPath(checkPath, false)
+                    val segment = Path()
+                    measure.getSegment(
+                        0f,
+                        measure.length * checkProgress.value,
+                        segment,
+                        true
+                    )
+                    drawPath(
+                        path = segment,
+                        color = accentGreen,
+                        style = Stroke(
+                            width = 2.6.dp.toPx(),
+                            cap = StrokeCap.Round,
+                            join = StrokeJoin.Round
                         )
-
-                        drawPath(
-                            path = partialPath,
-                            color = Color(0xFF03140A),
-                            style = Stroke(
-                                width = 4.2.dp.toPx(),
-                                cap = StrokeCap.Round,
-                                join = StrokeJoin.Round
-                            )
-                        )
-                    }
+                    )
                 }
             }
+        }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
             Text(
-                text = "Ödeme Başarılı",
-                style = MaterialTheme.typography.titleLarge.copy(
-                    color = Color.White,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = (-0.3).sp
+                text = "Tamamlandı",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    color = Color.White.copy(alpha = textAlpha.value),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = (-0.2).sp
                 ),
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
-
             Text(
-                text = "$cardTitle ile temassız işlem tamamlandı",
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    color = WaultPrimaryMint
+                text = cardTitle,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = Color.White.copy(alpha = 0.55f * textAlpha.value),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Normal
                 ),
                 textAlign = TextAlign.Center
             )

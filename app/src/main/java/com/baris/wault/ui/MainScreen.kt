@@ -24,6 +24,7 @@ fun MainScreen(
         cardNumberSuffix: String?,
         customColorHex: Long?,
         customImagePath: String?,
+        paymentNetwork: String?,
         isPrimary: Boolean,
         isHidden: Boolean
     ) -> Unit,

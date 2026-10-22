@@ -6,6 +6,9 @@
     <uses-permission android:name="android.permission.NFC" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission
+        android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
 
     <!-- Optional ADB-granted fallback permission for silent NFC switching without Shizuku -->
     <uses-permission
@@ -28,6 +31,13 @@
         <intent>
             <action android:name="android.nfc.cardemulation.action.HOST_APDU_SERVICE" />
         </intent>
+        <intent>
+            <action android:name="android.nfc.cardemulation.action.OFF_HOST_APDU_SERVICE" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
         <package android:name="moe.shizuku.privileged.api" />
     </queries>
 
@@ -45,6 +55,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
+            android:screenOrientation="portrait"
             android:theme="@style/Theme.Wault"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>

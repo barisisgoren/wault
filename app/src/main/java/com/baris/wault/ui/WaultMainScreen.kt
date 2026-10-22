@@ -83,7 +83,10 @@ import com.baris.wault.ui.components.FullscreenBarcodeDialog
 import com.baris.wault.ui.components.PassGridSection
 import com.baris.wault.ui.components.PaymentStackSection
 import com.baris.wault.ui.components.WaultFloatingPill
+import com.baris.wault.ui.components.WaultTab
 import com.baris.wault.ui.components.WaultTopBar
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import com.baris.wault.ui.theme.WaultAmoledBlack
 import com.baris.wault.ui.theme.WaultGlassBorderDark
 import com.baris.wault.ui.theme.WaultPrimaryMint
@@ -111,6 +114,7 @@ fun WaultMainScreen(
         cardNumberSuffix: String?,
         customColorHex: Long?,
         customImagePath: String?,
+        paymentNetwork: String?,
         isPrimary: Boolean,
         isHidden: Boolean
     ) -> Unit,
@@ -139,6 +143,7 @@ fun WaultMainScreen(
     onCloseFullscreenPass: () -> Unit
 ) {
     var isUnifiedActionSheetVisible by rememberSaveable { mutableStateOf(false) }
+    var selectedTab by rememberSaveable { mutableStateOf(WaultTab.ALL) }
 
     Scaffold(
         containerColor = WaultAmoledBlack,
@@ -184,36 +189,74 @@ fun WaultMainScreen(
                     )
                 }
 
-                // Unified Single-Screen Content:
-                // Top: Apple Wallet Bank Card Stack + "Okuyucuya yaklaştırın" NFC Status Indicator
-                // Bottom: 2-Column Compact Loyalty & Barcode Vault Grid
-                PaymentStackSection(
-                    banks = uiState.installedBanks,
-                    hiddenCount = uiState.hiddenBanks.size,
-                    activeBank = uiState.activeBank,
-                    isScanning = uiState.isScanningBanks,
-                    onSelectBank = onSelectBank,
-                    onEditBank = onOpenEditBankSheet,
-                    onActivateTemp60s = onActivateTemp60s,
-                    onReorderBanks = onReorderBanks,
-                    onRefreshBanks = onRefreshBanks,
-                    onOpenHiddenBanks = onOpenHiddenBanksSheet,
-                    modifier = Modifier.weight(1f),
-                    bottomContent = {
-                        PassGridSection(
-                            passes = uiState.loyaltyCards,
-                            onPassClick = onOpenFullscreenPass,
-                            onPassEdit = { card -> onOpenAddPassSheet(card) },
-                            onAddPassClick = { onOpenAddPassSheet(null) }
+                when (selectedTab) {
+                    WaultTab.ALL -> {
+                        PaymentStackSection(
+                            banks = uiState.installedBanks,
+                            hiddenCount = uiState.hiddenBanks.size,
+                            activeBank = uiState.activeBank,
+                            isScanning = uiState.isScanningBanks,
+                            onSelectBank = onSelectBank,
+                            onEditBank = onOpenEditBankSheet,
+                            onActivateTemp60s = onActivateTemp60s,
+                            onReorderBanks = onReorderBanks,
+                            onRefreshBanks = onRefreshBanks,
+                            onOpenHiddenBanks = onOpenHiddenBanksSheet,
+                            isScrollable = true,
+                            modifier = Modifier.weight(1f),
+                            bottomContent = {
+                                PassGridSection(
+                                    passes = uiState.loyaltyCards,
+                                    onPassClick = onOpenFullscreenPass,
+                                    onPassEdit = { card -> onOpenAddPassSheet(card) },
+                                    onAddPassClick = { onOpenAddPassSheet(null) }
+                                )
+                            }
                         )
                     }
-                )
+
+                    WaultTab.PAYMENT -> {
+                        PaymentStackSection(
+                            banks = uiState.installedBanks,
+                            hiddenCount = uiState.hiddenBanks.size,
+                            activeBank = uiState.activeBank,
+                            isScanning = uiState.isScanningBanks,
+                            onSelectBank = onSelectBank,
+                            onEditBank = onOpenEditBankSheet,
+                            onActivateTemp60s = onActivateTemp60s,
+                            onReorderBanks = onReorderBanks,
+                            onRefreshBanks = onRefreshBanks,
+                            onOpenHiddenBanks = onOpenHiddenBanksSheet,
+                            isScrollable = false,
+                            modifier = Modifier.weight(1f),
+                            bottomContent = {}
+                        )
+                    }
+
+                    WaultTab.PASSES -> {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState())
+                                .padding(horizontal = 20.dp, vertical = 8.dp)
+                        ) {
+                            PassGridSection(
+                                passes = uiState.loyaltyCards,
+                                onPassClick = onOpenFullscreenPass,
+                                onPassEdit = { card -> onOpenAddPassSheet(card) },
+                                onAddPassClick = { onOpenAddPassSheet(null) }
+                            )
+                            Spacer(modifier = Modifier.height(110.dp))
+                        }
+                    }
+                }
             }
 
             // Floating Frosted Glass Pill Dock anchored at BottomCenter
             WaultFloatingPill(
-                onAllClick = onRefreshBanks,
-                onAddClick = { onOpenAddPassSheet(null) },
+                currentTab = selectedTab,
+                onTabSelected = { selectedTab = it },
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
         }

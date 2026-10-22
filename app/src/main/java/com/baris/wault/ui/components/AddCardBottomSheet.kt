@@ -24,8 +24,6 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -44,15 +42,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.DeleteOutline
-import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.FlashOff
 import androidx.compose.material.icons.rounded.FlashOn
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.PhotoLibrary
+import androidx.compose.material.icons.rounded.QrCode2
 import androidx.compose.material.icons.rounded.QrCodeScanner
+import androidx.compose.material.icons.rounded.ViewWeek
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -60,9 +59,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -95,11 +91,14 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.baris.wault.data.vault.LoyaltyCardEntity
 import com.baris.wault.data.vault.WaultBarcodeFormat
+import com.baris.wault.ui.theme.WaultGlassBorderDark
 import com.baris.wault.ui.theme.WaultPassColorPresets
+import com.baris.wault.ui.theme.WaultPrimaryCyan
 import com.baris.wault.ui.theme.WaultPrimaryMint
+import com.baris.wault.ui.theme.WaultSurfaceContainerDark
+import com.baris.wault.ui.theme.WaultSurfaceDark
 import com.baris.wault.util.BarcodeGenerator
 import com.baris.wault.util.ImageStorageHelper
-import com.baris.wault.util.rememberStoredImageBitmap
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
@@ -107,23 +106,7 @@ import com.google.mlkit.vision.common.InputImage
 import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 
-private enum class EntryMode {
-    MANUAL,
-    SCANNER
-}
-
-private val QuickBrandSuggestions = listOf(
-    "MACFit" to 0xFF065F46L,
-    "Migros Money" to 0xFFC2410CL,
-    "İstanbulkart" to 0xFF9F1239L,
-    "Starbucks" to 0xFF065F46L,
-    "Decathlon" to 0xFF1E40AFL,
-    "Gratis" to 0xFF5B21B6L,
-    "Watsons" to 0xFF155E75L,
-    "CarrefourSA" to 0xFF1E40AFL
-)
-
-@kotlin.OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@kotlin.OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddCardBottomSheet(
     existingCard: LoyaltyCardEntity?,
@@ -144,17 +127,9 @@ fun AddCardBottomSheet(
     val haptics = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
 
-    var entryMode by remember {
-        mutableStateOf(EntryMode.MANUAL)
-    }
+    var isScannerOpen by remember { mutableStateOf(false) }
     var title by remember(existingCard) {
         mutableStateOf(existingCard?.title ?: "")
-    }
-    var subtitle by remember(existingCard) {
-        mutableStateOf(existingCard?.subtitle ?: "")
-    }
-    var notes by remember(existingCard) {
-        mutableStateOf(existingCard?.notes ?: "")
     }
     var barcodeValue by remember(existingCard) {
         mutableStateOf(existingCard?.barcodeValue ?: "")
@@ -171,8 +146,6 @@ fun AddCardBottomSheet(
         mutableStateOf(existingCard?.customImagePath)
     }
 
-    val coverBitmap = rememberStoredImageBitmap(customImagePath)
-
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -188,7 +161,6 @@ fun AddCardBottomSheet(
         hasCameraPermission = granted
     }
 
-    // 1. Launcher for scanning barcode/QR from Gallery Screenshot ("Galeriden Barkod Tara")
     val scanBarcodeFromGalleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
@@ -207,16 +179,16 @@ fun AddCardBottomSheet(
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                             barcodeValue = match.rawValue!!.trim()
                             selectedFormat = mapMlKitFormat(match.format)
-                            entryMode = EntryMode.MANUAL
+                            isScannerOpen = false
                             Toast.makeText(
                                 context,
-                                "Barkod galeriden başarıyla okundu",
+                                "Barkod okundu",
                                 Toast.LENGTH_SHORT
                             ).show()
                         } else {
                             Toast.makeText(
                                 context,
-                                "Seçilen görselde barkod veya QR kod bulunamadı",
+                                "Görselde barkod veya QR kod bulunamadı",
                                 Toast.LENGTH_LONG
                             ).show()
                         }
@@ -224,7 +196,7 @@ fun AddCardBottomSheet(
                     .addOnFailureListener {
                         Toast.makeText(
                             context,
-                            "Görsel taranırken bir hata oluştu",
+                            "Görsel taranırken hata oluştu",
                             Toast.LENGTH_SHORT
                         ).show()
                     }
@@ -235,7 +207,6 @@ fun AddCardBottomSheet(
         }
     }
 
-    // 2. Launcher for picking custom cover image ("Görsel Seç")
     val pickCoverImageLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
@@ -270,7 +241,7 @@ fun AddCardBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = WaultSurfaceDark
     ) {
         Column(
             modifier = Modifier
@@ -281,85 +252,103 @@ fun AddCardBottomSheet(
                 .padding(bottom = 24.dp)
         ) {
             Text(
-                text = if (existingCard == null) "Yeni Kart Ekle" else "Kartı Düzenle",
+                text = if (existingCard == null) "Kart veya Bilet Ekle" else "Kartı Düzenle",
                 style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
                 )
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Kamerayla, galerideki ekran görüntüsünden veya manuel olarak üyelik kartı ekleyin.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Option 1 (Kamerayla Tara) vs Option 2 (Manuel Giriş)
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                SegmentedButton(
-                    selected = entryMode == EntryMode.SCANNER,
-                    onClick = {
-                        entryMode = EntryMode.SCANNER
-                        if (!hasCameraPermission) {
-                            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            // Top 2 Clean Apple Action Tiles: Kamerayla Tara & Galeriden Seç
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (isScannerOpen) WaultPrimaryCyan.copy(alpha = 0.22f) else WaultSurfaceContainerDark,
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        if (isScannerOpen) WaultPrimaryCyan else WaultGlassBorderDark
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable {
+                            isScannerOpen = !isScannerOpen
+                            if (isScannerOpen && !hasCameraPermission) {
+                                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                            }
                         }
-                    },
-                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                    icon = {
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Icon(
                             imageVector = Icons.Rounded.QrCodeScanner,
                             contentDescription = null,
+                            tint = Color.White,
                             modifier = Modifier.size(18.dp)
                         )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Kamerayla Tara",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        )
                     }
-                ) {
-                    Text("Kamerayla Tara")
                 }
 
-                SegmentedButton(
-                    selected = entryMode == EntryMode.MANUAL,
-                    onClick = { entryMode = EntryMode.MANUAL },
-                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                    icon = {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = WaultSurfaceContainerDark,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, WaultGlassBorderDark),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable {
+                            scanBarcodeFromGalleryLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        }
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Icon(
-                            imageVector = Icons.Rounded.EditNote,
+                            imageVector = Icons.Rounded.PhotoLibrary,
                             contentDescription = null,
+                            tint = Color.White,
                             modifier = Modifier.size(18.dp)
                         )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Galeriden Seç",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        )
                     }
-                ) {
-                    Text("Bilgileri Gir")
                 }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Scan Barcode from Gallery Image ("Galeriden Görsel/Ekran Görüntüsü Tara")
-            FilledTonalButton(
-                onClick = {
-                    scanBarcodeFromGalleryLauncher.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
-                },
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.PhotoLibrary,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Galeriden Görsel/Ekran Görüntüsü Tara")
             }
 
             // Live CameraX + ML Kit Scanner Section
-            AnimatedVisibility(visible = entryMode == EntryMode.SCANNER) {
+            AnimatedVisibility(visible = isScannerOpen) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 14.dp)
+                        .padding(top = 12.dp)
                 ) {
                     if (hasCameraPermission) {
                         CameraBarcodeScannerBox(
@@ -367,45 +356,39 @@ fun AddCardBottomSheet(
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                 barcodeValue = rawValue
                                 selectedFormat = detectedFormat
-                                entryMode = EntryMode.MANUAL
+                                isScannerOpen = false
                             }
                         )
                     } else {
                         Surface(
-                            shape = RoundedCornerShape(18.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(16.dp),
+                            color = WaultSurfaceContainerDark,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(20.dp),
+                                    .padding(18.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.CameraAlt,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(36.dp)
+                                    tint = WaultPrimaryCyan,
+                                    modifier = Modifier.size(32.dp)
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = "Kamera İzni Gerekli",
-                                    style = MaterialTheme.typography.titleMedium
+                                    style = MaterialTheme.typography.titleMedium.copy(color = Color.White)
                                 )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Fiziksel kartları veya QR kodları otomatik okumak için kamera erişimine izin verin.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
+                                Spacer(modifier = Modifier.height(10.dp))
                                 OutlinedButton(
                                     onClick = {
                                         cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                                     }
                                 ) {
-                                    Text("Kamera İzni Ver")
+                                    Text("İzin Ver")
                                 }
                             }
                         }
@@ -413,123 +396,14 @@ fun AddCardBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Quick Brand Suggestions
-            if (existingCard == null) {
-                Text(
-                    text = "Hızlı Marka Şablonları",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    QuickBrandSuggestions.forEach { (presetName, presetColor) ->
-                        FilterChip(
-                            selected = title.equals(presetName, ignoreCase = true),
-                            onClick = {
-                                title = presetName
-                                selectedColorHex = presetColor
-                            },
-                            label = { Text(presetName) }
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            // Custom Cover Image Picker ("Görsel Seç")
-            Text(
-                text = "Kart Kapak Görseli / Logo",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier
-                        .width(96.dp)
-                        .height(62.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .clickable {
-                            pickCoverImageLauncher.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                            )
-                        }
-                ) {
-                    if (coverBitmap != null) {
-                        Image(
-                            bitmap = coverBitmap,
-                            contentDescription = "Kart Görseli",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Rounded.Image,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-
-                Column(modifier = Modifier.weight(1f)) {
-                    OutlinedButton(
-                        onClick = {
-                            pickCoverImageLauncher.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                            )
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Image,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Görsel Seç")
-                    }
-
-                    if (customImagePath != null) {
-                        TextButton(
-                            onClick = { customImagePath = null }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.DeleteOutline,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Görseli Kaldır")
-                        }
-                    }
-                }
-            }
-
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Title, Subtitle, Barcode Value & Notes Inputs
+            // Essential Input 1: Card / Brand Name
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text("Kart / Marka Adı *") },
-                placeholder = { Text("Örn: MACFit, Migros, Kütüphane") },
+                label = { Text("Kart Adı") },
+                placeholder = { Text("Kart veya bilet adını girin") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Words,
@@ -539,38 +413,23 @@ fun AddCardBottomSheet(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            OutlinedTextField(
-                value = subtitle,
-                onValueChange = { subtitle = it },
-                label = { Text("Alt Başlık / Üyelik Tipi (İsteğe Bağlı)") },
-                placeholder = { Text("Örn: Gold Üyelik • Kulüp Kartı") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Sentences,
-                    imeAction = ImeAction.Next
-                ),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
+            // Essential Input 2: Barcode / QR Code Value
             OutlinedTextField(
                 value = barcodeValue,
                 onValueChange = { barcodeValue = it },
-                label = { Text("Barkod / QR Kod Değeri *") },
+                label = { Text("Barkod / QR Kod Numarası") },
                 placeholder = { Text("Kart numarasını girin veya tarayın") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
-                    imeAction = ImeAction.Next
+                    imeAction = ImeAction.Done
                 ),
                 trailingIcon = {
                     IconButton(
                         onClick = {
-                            entryMode = EntryMode.SCANNER
-                            if (!hasCameraPermission) {
+                            isScannerOpen = !isScannerOpen
+                            if (isScannerOpen && !hasCameraPermission) {
                                 cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                             }
                         }
@@ -585,67 +444,68 @@ fun AddCardBottomSheet(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            OutlinedTextField(
-                value = notes,
-                onValueChange = { notes = it },
-                label = { Text("Notlar (İsteğe Bağlı)") },
-                placeholder = { Text("Örn: Şube bilgisi veya ek açıklama") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Sentences,
-                    imeAction = ImeAction.Done
-                ),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Barcode Format Selector
-            Text(
-                text = "Barkod Formatı",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            FlowRow(
+            // Minimal 2-Option Code Type Selector (QR Kod vs Çizgili Barkod)
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                WaultBarcodeFormat.entries.forEach { format ->
-                    FilterChip(
-                        selected = selectedFormat == format,
-                        onClick = { selectedFormat = format },
-                        label = { Text(format.displayName) }
-                    )
-                }
+                val isQrSelected = selectedFormat.isSquare
+                FilterChip(
+                    selected = isQrSelected,
+                    onClick = { selectedFormat = WaultBarcodeFormat.QR_CODE },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Rounded.QrCode2,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
+                    label = { Text("QR Kod") }
+                )
+
+                FilterChip(
+                    selected = !isQrSelected,
+                    onClick = {
+                        if (selectedFormat.isSquare) {
+                            selectedFormat = WaultBarcodeFormat.CODE_128
+                        }
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Rounded.ViewWeek,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
+                    label = { Text("Çizgili Barkod") }
+                )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Minimalist Preset Color Picker
+            // Card Color Swatches + Optional Compact Cover Image Button
             Text(
-                text = "Kart Tema Rengi",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = "Kart Rengi",
+                style = MaterialTheme.typography.labelLarge.copy(
+                    color = Color(0xFF94A3B8)
+                )
             )
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 WaultPassColorPresets.forEach { preset ->
                     val isSelected = selectedColorHex == preset.hex
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(38.dp)
                             .clip(CircleShape)
                             .background(Color(preset.hex))
                             .border(
@@ -661,9 +521,45 @@ fun AddCardBottomSheet(
                                 imageVector = Icons.Rounded.Check,
                                 contentDescription = preset.name,
                                 tint = Color.White,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Compact Optional Cover Image Row
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                TextButton(
+                    onClick = {
+                        pickCoverImageLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Image,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(if (customImagePath == null) "Özel Görsel Ekle (İsteğe Bağlı)" else "Görseli Değiştir")
+                }
+
+                if (customImagePath != null) {
+                    TextButton(onClick = { customImagePath = null }) {
+                        Icon(
+                            imageVector = Icons.Rounded.DeleteOutline,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Kaldır")
                     }
                 }
             }
@@ -671,38 +567,33 @@ fun AddCardBottomSheet(
             // Live Barcode Preview
             AnimatedVisibility(visible = previewBitmap != null) {
                 previewBitmap?.let { bmp ->
-                    Column(
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color.White,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 18.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                            .padding(top = 8.dp)
                     ) {
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color.White,
-                            modifier = Modifier.fillMaxWidth()
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp)
+                                .height(if (selectedFormat.isSquare) 116.dp else 70.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(14.dp)
-                                    .height(if (selectedFormat.isSquare) 120.dp else 74.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Image(
-                                    bitmap = bmp,
-                                    contentDescription = "Barkod Önizleme",
-                                    contentScale = ContentScale.Fit,
-                                    filterQuality = FilterQuality.None,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
+                            Image(
+                                bitmap = bmp,
+                                contentDescription = "Barkod Önizleme",
+                                contentScale = ContentScale.Fit,
+                                filterQuality = FilterQuality.None,
+                                modifier = Modifier.fillMaxSize()
+                            )
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(22.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             val canSave = title.isNotBlank() && barcodeValue.isNotBlank()
             Button(
@@ -710,8 +601,8 @@ fun AddCardBottomSheet(
                     onSave(
                         existingCard,
                         title,
-                        subtitle,
-                        notes,
+                        existingCard?.subtitle.orEmpty(),
+                        existingCard?.notes,
                         barcodeValue,
                         selectedFormat,
                         selectedColorHex,
@@ -719,13 +610,17 @@ fun AddCardBottomSheet(
                     )
                 },
                 enabled = canSave,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = WaultPrimaryCyan,
+                    contentColor = Color.White
+                ),
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp)
             ) {
                 Text(
-                    text = if (existingCard == null) "Kartı Kaydet" else "Değişiklikleri Kaydet",
+                    text = if (existingCard == null) "Cüzdana Ekle" else "Kaydet",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold
                     )
@@ -824,13 +719,13 @@ private fun CameraBarcodeScannerBox(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(220.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .height(210.dp)
+            .clip(RoundedCornerShape(18.dp))
             .background(Color.Black)
             .border(
                 width = 1.5.dp,
                 color = WaultPrimaryMint.copy(alpha = 0.6f),
-                shape = RoundedCornerShape(20.dp)
+                shape = RoundedCornerShape(18.dp)
             )
     ) {
         AndroidView(
@@ -842,7 +737,7 @@ private fun CameraBarcodeScannerBox(
             modifier = Modifier
                 .align(Alignment.Center)
                 .fillMaxWidth(0.74f)
-                .height(110.dp)
+                .height(104.dp)
                 .border(
                     width = 2.dp,
                     color = WaultPrimaryMint.copy(alpha = 0.85f),
@@ -878,7 +773,7 @@ private fun CameraBarcodeScannerBox(
                 .padding(bottom = 10.dp)
         ) {
             Text(
-                text = "Barkodu veya QR kodu çerçeveye hizalayın",
+                text = "Barkodu çerçeveye hizalayın",
                 style = MaterialTheme.typography.labelSmall.copy(color = Color.White),
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
             )

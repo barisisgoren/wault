@@ -50,6 +50,7 @@ class CardStackMotionState<K : Any> {
         private set
 
     internal val dragTopPx = mutableFloatStateOf(0f)
+    internal val pullDownFanFactor = mutableFloatStateOf(0f)
     internal val topAnimatables = HashMap<K, Animatable<Float, AnimationVector1D>>()
 
     /** Current on-screen top of a card (live drag position, in-flight animation value, or fallback slot). */
@@ -58,14 +59,24 @@ class CardStackMotionState<K : Any> {
 
     fun startDrag(key: K, topPx: Float) {
         dragTopPx.floatValue = topPx
+        pullDownFanFactor.floatValue = 0f
         draggingKey = key
     }
 
-    fun updateDrag(topPx: Float) {
+    fun updateDrag(topPx: Float, fanFactor: Float = 0f) {
         dragTopPx.floatValue = topPx
+        pullDownFanFactor.floatValue = fanFactor.coerceIn(0f, 1.5f)
     }
 
     fun endDrag() {
+        val finishedKey = draggingKey
+        if (finishedKey != null) {
+            val anim = topAnimatables[finishedKey]
+            if (anim != null) {
+                // Keep last drag coordinate available for immediate snap
+            }
+        }
+        pullDownFanFactor.floatValue = 0f
         draggingKey = null
     }
 }
@@ -75,8 +86,8 @@ fun <K : Any> rememberCardStackMotionState(): CardStackMotionState<K> =
     remember { CardStackMotionState() }
 
 private val StackSettleSpring = spring(
-    dampingRatio = Spring.DampingRatioNoBouncy,
-    stiffness = 450f,
+    dampingRatio = 0.82f,
+    stiffness = 380f,
     visibilityThreshold = 0.5f
 )
 
@@ -107,10 +118,11 @@ fun <K : Any> StackCardSlot(
         }
     }
 
-    var wasDragging by remember { mutableStateOf(false) }
+    var wasDragging by remember(key) { mutableStateOf(false) }
     LaunchedEffect(isDragging, targetTopPx) {
         if (isDragging) {
             wasDragging = true
+            topAnim.snapTo(motion.dragTopPx.floatValue)
         } else {
             if (wasDragging) {
                 wasDragging = false
@@ -121,20 +133,20 @@ fun <K : Any> StackCardSlot(
     }
 
     val animatedScaleX = animateFloatAsState(
-        targetValue = if (isDragging) 1.04f else stackScaleX,
-        animationSpec = spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMedium),
+        targetValue = if (isDragging) 1.03f else stackScaleX,
+        animationSpec = StackSettleSpring,
         label = "StackCardScaleX"
     )
     val animatedScaleY = animateFloatAsState(
-        targetValue = if (isDragging) 1.04f else 1f,
-        animationSpec = spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMedium),
+        targetValue = if (isDragging) 1.03f else 1f,
+        animationSpec = StackSettleSpring,
         label = "StackCardScaleY"
     )
 
     content(
         isDragging,
         Modifier
-            .zIndex(if (isDragging) 500f else zIndex)
+            .zIndex(if (isDragging) 100f else zIndex)
             .graphicsLayer {
                 translationY = if (isDragging) motion.dragTopPx.floatValue else topAnim.value
                 scaleX = animatedScaleX.value
@@ -155,9 +167,8 @@ class StackHostMetrics {
 enum class SpotlightMode { FOCUS, PAYMENT }
 
 /**
- * Spotlight (long-press / double-tap) state. The selected card flies from its stack position
- * ([originTopPx]) to the screen center ([targetTopPx]) while scaling up, driven by a spring
- * [progress] value (0 = in stack, 1 = centered).
+ * Spotlight (focus / payment) state. The selected card springs to the top of the screen
+ * (`topOffset = 24.dp` right below the top bar) with `spring(dampingRatio = 0.82f, stiffness = 380f)`.
  */
 @Stable
 class CardSpotlightState<K : Any>(private val scope: CoroutineScope) {
@@ -171,7 +182,7 @@ class CardSpotlightState<K : Any>(private val scope: CoroutineScope) {
         private set
     var targetTopPx by mutableFloatStateOf(0f)
         private set
-    var targetScale by mutableFloatStateOf(1.12f)
+    var targetScale by mutableFloatStateOf(1.02f)
         private set
 
     val progress = Animatable(0f, visibilityThreshold = 0.0005f)
@@ -179,7 +190,7 @@ class CardSpotlightState<K : Any>(private val scope: CoroutineScope) {
 
     val isActive: Boolean get() = key != null
 
-    fun open(key: K, mode: SpotlightMode, originTopPx: Float, targetTopPx: Float, targetScale: Float = 1.12f) {
+    fun open(key: K, mode: SpotlightMode, originTopPx: Float, targetTopPx: Float, targetScale: Float = 1.02f) {
         job?.cancel()
         if (this.key != key) {
             this.originTopPx = originTopPx
@@ -190,7 +201,7 @@ class CardSpotlightState<K : Any>(private val scope: CoroutineScope) {
         this.targetTopPx = targetTopPx
         this.targetScale = targetScale
         job = scope.launch {
-            progress.animateTo(1f, spring(dampingRatio = 0.76f, stiffness = 280f, visibilityThreshold = 0.0005f))
+            progress.animateTo(1f, spring(dampingRatio = 0.82f, stiffness = 380f, visibilityThreshold = 0.0005f))
         }
     }
 
@@ -205,7 +216,7 @@ class CardSpotlightState<K : Any>(private val scope: CoroutineScope) {
         this.originTopPx = originTopPx
         isClosing = true
         job = scope.launch {
-            progress.animateTo(0f, spring(dampingRatio = 0.95f, stiffness = 380f, visibilityThreshold = 0.0005f))
+            progress.animateTo(0f, spring(dampingRatio = 0.88f, stiffness = 380f, visibilityThreshold = 0.0005f))
             key = null
             isClosing = false
             onClosed()
@@ -228,7 +239,7 @@ fun <K : Any> rememberCardSpotlightState(): CardSpotlightState<K> {
 }
 
 /**
- * Computes the spotlight card's (unscaled) layout top in host coordinates so it sits centered.
+ * Computes the spotlight card's top offset at the TOP section of the screen (`24.dp` below top bar).
  */
 fun computeSpotlightTopPx(
     availableHeightPx: Float,
@@ -240,20 +251,12 @@ fun computeSpotlightTopPx(
     centerCardOnly: Boolean
 ): Float {
     val scaleOverflow = (scale - 1f) * cardHeightPx / 2f
-    val minLayoutTop = minTopPx + scaleOverflow
-    return if (centerCardOnly) {
-        val centered = (availableHeightPx - cardHeightPx) / 2f
-        val maxTopToFitBelow = availableHeightPx - cardHeightPx - scaleOverflow - gapPx - belowHeightPx
-        centered.coerceAtMost(maxTopToFitBelow).coerceAtLeast(minLayoutTop)
-    } else {
-        val group = cardHeightPx * scale + gapPx + belowHeightPx
-        val visualTop = (availableHeightPx - group) / 2f
-        (visualTop + scaleOverflow).coerceAtLeast(minLayoutTop)
-    }
+    return (minTopPx + scaleOverflow).coerceAtLeast(0f)
 }
 
 /**
- * Full-size overlay: animated dark scrim + spotlight card flying to center + content below it.
+ * Full-size overlay: 92% darkened scrim + active card at the TOP (`topOffset = 24.dp`) +
+ * a SINGLE "Okuyucuya Yaklaştırın" & action buttons block at `cardBottom + 24.dp`.
  */
 @Composable
 fun <K : Any> CardSpotlightOverlay(
@@ -272,7 +275,7 @@ fun <K : Any> CardSpotlightOverlay(
     val density = LocalDensity.current
     val cardHeightPx = with(density) { cardHeight.toPx() }
     val gapPx = with(density) { belowGap.toPx() }
-    val slidePx = with(density) { 32.dp.toPx() }
+    val slidePx = with(density) { 24.dp.toPx() }
 
     val currentDismiss by rememberUpdatedState(onDismissRequest)
     val currentTap by rememberUpdatedState(onCardTap)
@@ -280,7 +283,7 @@ fun <K : Any> CardSpotlightOverlay(
 
     val animatedTarget = animateFloatAsState(
         targetValue = spotlight.targetTopPx,
-        animationSpec = spring(dampingRatio = 0.82f, stiffness = 300f),
+        animationSpec = spring(dampingRatio = 0.82f, stiffness = 380f),
         label = "SpotlightTargetTop"
     )
 
@@ -289,12 +292,12 @@ fun <K : Any> CardSpotlightOverlay(
             .fillMaxSize()
             .clipToBounds()
     ) {
-        // Dark scrim (alpha read in draw phase only)
+        // 92% Dark Scrim (alpha read in draw phase only)
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .drawBehind {
-                    val a = (0.88f * spotlight.progress.value).coerceIn(0f, 0.92f)
+                    val a = (0.92f * spotlight.progress.value).coerceIn(0f, 0.94f)
                     drawRect(Color.Black.copy(alpha = a))
                 }
                 .pointerInput(Unit) {
@@ -304,7 +307,7 @@ fun <K : Any> CardSpotlightOverlay(
                 }
         )
 
-        // Spotlight card: interpolates from stack slot to screen center and scales up prominently
+        // Active card springs to topOffset = 24.dp
         card(
             Modifier
                 .padding(horizontal = 20.dp)
@@ -324,7 +327,7 @@ fun <K : Any> CardSpotlightOverlay(
                 }
         )
 
-        // Content below the card (actions / NFC radar / success animation)
+        // Content directly below the card (`cardBottom + 24.dp`)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -336,7 +339,7 @@ fun <K : Any> CardSpotlightOverlay(
                     IntOffset(0, y.roundToInt())
                 }
                 .graphicsLayer {
-                    val a = ((spotlight.progress.value - 0.45f) / 0.55f).coerceIn(0f, 1f)
+                    val a = ((spotlight.progress.value - 0.35f) / 0.65f).coerceIn(0f, 1f)
                     alpha = a
                     translationY = (1f - a) * slidePx
                 }
