@@ -41,6 +41,7 @@ Android'de her bankanın (Garanti, Akbank, Yapı Kredi, Ziraat, İş Bankası, v
 ### 3. ⭐ Kart Anatomisi & Favorilendirme
 - **Yumuşak 20.dp Köşeler ve Metalik Pırıltı:** Derin gölgeler, radyal metalik ışık ve üst kenarda cam yansıması.
 - **İnteraktif Favori Yıldızı:** Kartın sağ üst köşesindeki yıldıza dokunularak kart favoriye alınabilir; favori kartlar yığın içinde otomatik olarak en ön sıraya taşınır.
+- **İnteraktif Kart Görseli Kırpıcı (Card Image Cropper):** Galeriden seçilen fotoğraflar, ID-1 standart kart oranına (1.586:1) göre serbestçe kaydırılabilir (pan), yakınlaştırılabilir (pinch-to-zoom), 90° döndürülebilir ve kart şablonuna tam oturacak şekilde yüksek çözünürlükte (1200x757) kırpılabilir.
 - **Gerçekçi Ödeme Kartı Düzeni:**
   - **Sol Üst:** Banka logosu ve temizlenmiş başlık.
   - **Sağ Üst:** Altın favori yıldızı.
@@ -147,3 +148,4 @@ Wault, Shizuku olmadan da standart Android fallback menüsü ile çalışır. An
 ## 📜 Lisans
 
 Bu proje **Apache License 2.0** altında lisanslanmıştır. Detaylar için [LICENSE](LICENSE) dosyasına göz atabilirsiniz.
+

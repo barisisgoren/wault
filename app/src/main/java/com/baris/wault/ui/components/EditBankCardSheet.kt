@@ -1,5 +1,6 @@
 package com.baris.wault.ui.components
 
+import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,6 +26,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Crop
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Nfc
@@ -136,18 +138,16 @@ fun EditBankCardSheet(
         )
     }
 
+    var bitmapToCrop by remember { mutableStateOf<Bitmap?>(null) }
+
     val pickCardCoverLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         if (uri != null) {
             scope.launch {
-                val savedPath = ImageStorageHelper.saveGalleryImageToInternalStorage(
-                    context = context,
-                    sourceUri = uri,
-                    prefix = "bank"
-                )
-                if (savedPath != null) {
-                    customImagePath = savedPath
+                val decoded = ImageStorageHelper.decodeBitmapFromUri(context, uri)
+                if (decoded != null) {
+                    bitmapToCrop = decoded
                 }
             }
         }
@@ -374,6 +374,25 @@ fun EditBankCardSheet(
                 }
 
                 if (customImagePath != null) {
+                    TextButton(
+                        onClick = {
+                            scope.launch {
+                                val existing = ImageStorageHelper.loadOriginalBitmap(customImagePath)
+                                if (existing != null) {
+                                    bitmapToCrop = existing
+                                }
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Crop,
+                            contentDescription = "Kırp",
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Kırp")
+                    }
+
                     TextButton(onClick = { customImagePath = null }) {
                         Icon(
                             imageVector = Icons.Rounded.DeleteOutline,
@@ -501,5 +520,28 @@ fun EditBankCardSheet(
                 Text("Bu Kartı Cüzdandan Gizle")
             }
         }
+    }
+
+    // Interactive Card Image Cropper
+    bitmapToCrop?.let { bmp ->
+        CardImageCropperDialog(
+            bitmap = bmp,
+            onCropConfirmed = { cropped ->
+                scope.launch {
+                    val savedPath = ImageStorageHelper.saveCroppedBitmap(
+                        context = context,
+                        bitmap = cropped,
+                        prefix = "bank"
+                    )
+                    if (savedPath != null) {
+                        customImagePath = savedPath
+                    }
+                    bitmapToCrop = null
+                }
+            },
+            onDismiss = {
+                bitmapToCrop = null
+            }
+        )
     }
 }

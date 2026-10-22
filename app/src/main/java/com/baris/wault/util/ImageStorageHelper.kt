@@ -3,6 +3,8 @@ package com.baris.wault.util
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import android.media.ExifInterface
 import android.net.Uri
 import android.util.LruCache
 import androidx.compose.runtime.Composable
@@ -83,6 +85,112 @@ object ImageStorageHelper {
             val path = destFile.absolutePath
             synchronized(bitmapCache) {
                 bitmapCache.put(path, finalBitmap.asImageBitmap())
+            }
+            path
+        }.getOrNull()
+    }
+
+    /**
+     * Decodes a Bitmap from [sourceUri], respecting its EXIF orientation tag,
+     * downscaling to [maxDimension] to keep memory reasonable for interactive cropping.
+     */
+    suspend fun decodeBitmapFromUri(
+        context: Context,
+        sourceUri: Uri,
+        maxDimension: Int = 2048
+    ): Bitmap? = withContext(Dispatchers.IO) {
+        runCatching {
+            val resolver = context.contentResolver
+
+            // 1. Read EXIF orientation
+            var rotationDegrees = 0
+            try {
+                resolver.openInputStream(sourceUri)?.use { stream ->
+                    val exif = ExifInterface(stream)
+                    val orientation = exif.getAttributeInt(
+                        ExifInterface.TAG_ORIENTATION,
+                        ExifInterface.ORIENTATION_NORMAL
+                    )
+                    rotationDegrees = when (orientation) {
+                        ExifInterface.ORIENTATION_ROTATE_90 -> 90
+                        ExifInterface.ORIENTATION_ROTATE_180 -> 180
+                        ExifInterface.ORIENTATION_ROTATE_270 -> 270
+                        else -> 0
+                    }
+                }
+            } catch (_: Exception) { }
+
+            // 2. Decode bounds
+            val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            resolver.openInputStream(sourceUri)?.use { stream ->
+                BitmapFactory.decodeStream(stream, null, boundsOptions)
+            }
+            val rawW = boundsOptions.outWidth
+            val rawH = boundsOptions.outHeight
+            if (rawW <= 0 || rawH <= 0) return@runCatching null
+
+            var sampleSize = 1
+            while (max(rawW / sampleSize, rawH / sampleSize) > maxDimension * 2) {
+                sampleSize *= 2
+            }
+
+            val decodeOptions = BitmapFactory.Options().apply {
+                inSampleSize = sampleSize
+                inPreferredConfig = Bitmap.Config.ARGB_8888
+            }
+            var decoded = resolver.openInputStream(sourceUri)?.use { stream ->
+                BitmapFactory.decodeStream(stream, null, decodeOptions)
+            } ?: return@runCatching null
+
+            if (rotationDegrees != 0) {
+                val matrix = Matrix().apply { postRotate(rotationDegrees.toFloat()) }
+                val rotated = Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true)
+                if (rotated != decoded) {
+                    decoded.recycle()
+                    decoded = rotated
+                }
+            }
+
+            scaleDownIfNeeded(decoded, maxDimension)
+        }.getOrNull()
+    }
+
+    /**
+     * Loads an existing internal storage image as a mutable Bitmap for re-cropping.
+     */
+    suspend fun loadOriginalBitmap(path: String?): Bitmap? = withContext(Dispatchers.IO) {
+        if (path.isNullOrBlank()) return@withContext null
+        runCatching {
+            val file = File(path)
+            if (!file.exists() || !file.canRead()) return@runCatching null
+            BitmapFactory.decodeFile(file.absolutePath)
+        }.getOrNull()
+    }
+
+    /**
+     * Saves a user-cropped Bitmap into `filesDir/card_images/`, updates LRU cache,
+     * and returns the absolute file path.
+     */
+    suspend fun saveCroppedBitmap(
+        context: Context,
+        bitmap: Bitmap,
+        prefix: String = "card"
+    ): String? = withContext(Dispatchers.IO) {
+        runCatching {
+            val directory = File(context.filesDir, CARD_IMAGES_DIR).apply {
+                if (!exists()) mkdirs()
+            }
+            val fileName = "${prefix}_${System.currentTimeMillis()}.jpg"
+            val destFile = File(directory, fileName)
+
+            FileOutputStream(destFile).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
+                out.flush()
+            }
+
+            val path = destFile.absolutePath
+            synchronized(bitmapCache) {
+                bitmapCache.put(path, bitmap.asImageBitmap())
             }
             path
         }.getOrNull()

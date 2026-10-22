@@ -2,6 +2,7 @@ package com.baris.wault.ui.components
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.util.Size
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -41,6 +42,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Crop
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.FlashOff
 import androidx.compose.material.icons.rounded.FlashOn
@@ -207,18 +209,16 @@ fun AddCardBottomSheet(
         }
     }
 
+    var bitmapToCrop by remember { mutableStateOf<Bitmap?>(null) }
+
     val pickCoverImageLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         if (uri != null) {
             scope.launch {
-                val savedPath = ImageStorageHelper.saveGalleryImageToInternalStorage(
-                    context = context,
-                    sourceUri = uri,
-                    prefix = "pass"
-                )
-                if (savedPath != null) {
-                    customImagePath = savedPath
+                val decoded = ImageStorageHelper.decodeBitmapFromUri(context, uri)
+                if (decoded != null) {
+                    bitmapToCrop = decoded
                 }
             }
         }
@@ -552,6 +552,25 @@ fun AddCardBottomSheet(
                 }
 
                 if (customImagePath != null) {
+                    TextButton(
+                        onClick = {
+                            scope.launch {
+                                val existing = ImageStorageHelper.loadOriginalBitmap(customImagePath)
+                                if (existing != null) {
+                                    bitmapToCrop = existing
+                                }
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Crop,
+                            contentDescription = "Kırp",
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Kırp")
+                    }
+
                     TextButton(onClick = { customImagePath = null }) {
                         Icon(
                             imageVector = Icons.Rounded.DeleteOutline,
@@ -627,6 +646,29 @@ fun AddCardBottomSheet(
                 )
             }
         }
+    }
+
+    // Interactive Card Image Cropper
+    bitmapToCrop?.let { bmp ->
+        CardImageCropperDialog(
+            bitmap = bmp,
+            onCropConfirmed = { cropped ->
+                scope.launch {
+                    val savedPath = ImageStorageHelper.saveCroppedBitmap(
+                        context = context,
+                        bitmap = cropped,
+                        prefix = "pass"
+                    )
+                    if (savedPath != null) {
+                        customImagePath = savedPath
+                    }
+                    bitmapToCrop = null
+                }
+            },
+            onDismiss = {
+                bitmapToCrop = null
+            }
+        )
     }
 }
 
