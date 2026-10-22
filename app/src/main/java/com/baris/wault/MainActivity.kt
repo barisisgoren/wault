@@ -73,7 +73,7 @@ class MainActivity : ComponentActivity() {
                     onRefreshBanks = viewModel::refreshAll,
                     onOpenEditBankSheet = viewModel::openEditBankSheet,
                     onCloseEditBankSheet = viewModel::closeEditBankSheet,
-                    onSaveBankOverride = { bank, title, suffix, color, imagePath, paymentNetwork, isPrimary, isHidden ->
+                    onSaveBankOverride = { bank, title, suffix, color, imagePath, paymentNetwork, isPrimary, isHidden, isFavorite ->
                         viewModel.saveBankCardOverride(
                             bank = bank,
                             customTitle = title,
@@ -82,7 +82,8 @@ class MainActivity : ComponentActivity() {
                             customImagePath = imagePath,
                             paymentNetwork = paymentNetwork,
                             isPrimary = isPrimary,
-                            isHidden = isHidden
+                            isHidden = isHidden,
+                            isFavorite = isFavorite
                         )
                     },
                     onSetBankHidden = viewModel::setBankHidden,

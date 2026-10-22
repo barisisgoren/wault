@@ -8,8 +8,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,10 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material.icons.rounded.StarBorder
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -70,9 +64,9 @@ fun BankCardItem(
     isDefaultNfc: Boolean = false,
     isFocused: Boolean = false,
     isDragging: Boolean = false,
-    onToggleFavorite: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    android.util.Log.e("WAULT_INSPECT", "BankCardItem COMPOSING: ${bank.displayTitle}, isExpanded=$isExpanded")
     val cardShape = RoundedCornerShape(WaultTokens.CardRadius)
     val customCoverBitmap = rememberStoredImageBitmap(bank.customImagePath)
     val customCoverLuminance = rememberStoredImageLuminance(bank.customImagePath)
@@ -122,7 +116,7 @@ fun BankCardItem(
 
     val expandedAlpha by animateFloatAsState(
         targetValue = if (isExpanded) 1f else 0f,
-        animationSpec = tween(if (reduceMotion) 0 else 220),
+        animationSpec = tween(if (reduceMotion) 0 else 140, easing = androidx.compose.animation.core.FastOutSlowInEasing),
         label = "ExpandedAlpha"
     )
     val titleSize by animateFloatAsState(
@@ -220,37 +214,7 @@ fun BankCardItem(
                         tint = onCard,
                         modifier = Modifier.alpha(1f - expandedAlpha)
                     )
-                    if (onToggleFavorite != null && isExpanded) {
-                        Box(
-                            modifier = Modifier
-                                .size(WaultTokens.MinTouch)
-                                .alpha(expandedAlpha)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = onToggleFavorite
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = if (bank.isFavorite) Icons.Rounded.Star else Icons.Rounded.StarBorder,
-                                contentDescription = if (bank.isFavorite) "Favorilerden Çıkar" else "Favorilere Ekle",
-                                tint = if (bank.isFavorite) WaultTokens.Favorite else onCardSecondary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
                 }
-            }
-
-            // ---- Chip + contactless (expanded content) ----
-            Row(
-                modifier = Modifier.alpha(expandedAlpha),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(WaultTokens.Space12)
-            ) {
-                PhotorealisticEmvChip(isGold = !style.isNeutralChip)
-                CardContactlessSymbol(tint = onCardSecondary)
             }
 
             // ---- Masked number (left) + network badge (right) ----

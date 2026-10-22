@@ -26,7 +26,8 @@ fun MainScreen(
         customImagePath: String?,
         paymentNetwork: String?,
         isPrimary: Boolean,
-        isHidden: Boolean
+        isHidden: Boolean,
+        isFavorite: Boolean
     ) -> Unit,
     onSetBankHidden: (BankPaymentApp, Boolean) -> Unit,
     onOpenHiddenBanksSheet: () -> Unit,

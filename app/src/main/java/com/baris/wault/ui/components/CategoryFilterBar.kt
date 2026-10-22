@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -37,6 +38,7 @@ import com.baris.wault.ui.theme.WaultTokens
 
 enum class WaultCardCategory(val title: String) {
     ALL("Tüm Kartlar"),
+    FAVORITES("Favoriler"),
     BANK_CREDIT("Banka & Kredi"),
     TRANSIT("Ulaşım"),
     MEMBERSHIPS("Üyelikler & Diğer")
@@ -57,10 +59,11 @@ fun CategoryFilterBar(
     val scrollState = rememberScrollState()
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
-    Box(modifier = modifier.fillMaxWidth()) {
+    Box(modifier = modifier.fillMaxWidth().height(52.dp)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .fillMaxHeight()
                 .horizontalScroll(scrollState)
                 .padding(horizontal = WaultTokens.Space16 + 4.dp),
             horizontalArrangement = Arrangement.spacedBy(WaultTokens.Space8),

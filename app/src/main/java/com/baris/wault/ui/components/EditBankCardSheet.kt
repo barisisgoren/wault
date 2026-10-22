@@ -93,7 +93,8 @@ fun EditBankCardSheet(
         customImagePath: String?,
         paymentNetwork: String?,
         isPrimary: Boolean,
-        isHidden: Boolean
+        isHidden: Boolean,
+        isFavorite: Boolean
     ) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -117,6 +118,9 @@ fun EditBankCardSheet(
     }
     var isPrimary by remember(bank) {
         mutableStateOf(bank.override?.isPrimary == true)
+    }
+    var isFavorite by remember(bank) {
+        mutableStateOf(bank.isFavorite)
     }
 
     val livePreviewBank = remember(
@@ -450,9 +454,9 @@ fun EditBankCardSheet(
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.Star,
+                            imageVector = Icons.Rounded.Nfc,
                             contentDescription = null,
-                            tint = Color(0xFFFACC15),
+                            tint = WaultPrimaryMint,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
@@ -480,6 +484,57 @@ fun EditBankCardSheet(
                 }
             }
 
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Favorite ("Favorilere Ekle") Switch
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = WaultSurfaceContainerDark,
+                border = androidx.compose.foundation.BorderStroke(1.dp, WaultGlassBorderDark),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Star,
+                            contentDescription = null,
+                            tint = Color(0xFFFFD60A),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Favorilere Ekle",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White
+                                )
+                            )
+                            Text(
+                                text = "Kartı 'Favoriler' filtresinde gösterir",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = Color(0xFF94A3B8)
+                                )
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Switch(
+                        checked = isFavorite,
+                        onCheckedChange = { isFavorite = it }
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(20.dp))
 
             // Save & Hide Card Buttons
@@ -493,7 +548,8 @@ fun EditBankCardSheet(
                         customImagePath,
                         selectedNetwork.code,
                         isPrimary,
-                        false
+                        false,
+                        isFavorite
                     )
                 },
                 colors = ButtonDefaults.buttonColors(
@@ -525,7 +581,8 @@ fun EditBankCardSheet(
                         customImagePath,
                         selectedNetwork.code,
                         false,
-                        true
+                        true,
+                        isFavorite
                     )
                 },
                 colors = ButtonDefaults.textButtonColors(

@@ -108,6 +108,7 @@ fun <K : Any> StackCardSlot(
 ) {
     val isDragging = motion.draggingKey == key
     val topAnim = remember(key) { Animatable(targetTopPx, visibilityThreshold = 0.5f) }
+    android.util.Log.e("WAULT_INSPECT", "StackCardSlot COMPOSING: key=$key, targetTopPx=$targetTopPx, topAnim=${topAnim.value}, isHidden=$isHidden, zIndex=$zIndex")
 
     DisposableEffect(key, topAnim) {
         motion.topAnimatables[key] = topAnim

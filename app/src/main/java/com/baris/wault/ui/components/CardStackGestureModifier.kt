@@ -30,6 +30,7 @@ fun <K : Any> Modifier.stackContainerGestures(
     onCardDragStart: (cardKey: K, initialTopPx: Float) -> Unit,
     onCardDragUpdate: (cardKey: K, newTopPx: Float) -> Unit,
     onCardDragEnd: (cardKey: K) -> Unit,
+    onCardTouchDown: (K) -> Unit = {},
     onEmptySpaceTap: () -> Unit = {},
     waitForDoubleTapBeforeTap: Boolean = false
 ): Modifier {
@@ -41,6 +42,7 @@ fun <K : Any> Modifier.stackContainerGestures(
     val currentOnCardDragStart by rememberUpdatedState(onCardDragStart)
     val currentOnCardDragUpdate by rememberUpdatedState(onCardDragUpdate)
     val currentOnCardDragEnd by rememberUpdatedState(onCardDragEnd)
+    val currentOnCardTouchDown by rememberUpdatedState(onCardTouchDown)
 
     return this.pointerInput(waitForDoubleTapBeforeTap) {
         val touchSlop = viewConfiguration.touchSlop
@@ -95,6 +97,8 @@ fun <K : Any> Modifier.stackContainerGestures(
             val cardKey: K = stickyKey ?: hit!!.first
             val canDrag = hit != null && hit.first == cardKey
             val initialCardTopPx = hit?.second ?: 0f
+
+            currentOnCardTouchDown(cardKey)
 
             var isDragging = false
             var longPressTriggered = false

@@ -128,7 +128,8 @@ fun WaultMainScreen(
         customImagePath: String?,
         paymentNetwork: String?,
         isPrimary: Boolean,
-        isHidden: Boolean
+        isHidden: Boolean,
+        isFavorite: Boolean
     ) -> Unit,
     onSetBankHidden: (BankPaymentApp, Boolean) -> Unit,
     onOpenHiddenBanksSheet: () -> Unit,
@@ -172,6 +173,7 @@ fun WaultMainScreen(
         }
         when (selectedCategory) {
             WaultCardCategory.ALL, WaultCardCategory.BANK_CREDIT -> list
+            WaultCardCategory.FAVORITES -> list.filter { it.isFavorite }
             WaultCardCategory.TRANSIT -> list.filter {
                 it.displayTitle.contains("kent", ignoreCase = true) ||
                     it.displayTitle.contains("kart", ignoreCase = true) ||
@@ -193,6 +195,7 @@ fun WaultMainScreen(
         }
         when (selectedCategory) {
             WaultCardCategory.ALL -> list
+            WaultCardCategory.FAVORITES -> emptyList()
             WaultCardCategory.BANK_CREDIT -> emptyList()
             WaultCardCategory.TRANSIT -> list.filter {
                 it.title.contains("kart", ignoreCase = true) ||

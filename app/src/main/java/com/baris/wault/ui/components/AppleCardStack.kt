@@ -85,7 +85,7 @@ import com.baris.wault.data.nfc.BankPaymentApp
 import kotlinx.coroutines.delay
 
 private val BANK_CARD_HEIGHT = 216.dp
-private val STACK_PEEK_OFFSET = 64.dp
+private val STACK_PEEK_OFFSET = 54.dp
 private val PULL_DOWN_ACCORDION_DISTANCE = 60.dp
 private val SPOTLIGHT_TOP_OFFSET = 24.dp
 private val SPOTLIGHT_GAP = 24.dp
@@ -102,6 +102,8 @@ fun AppleCardStack(
     onActivateTemp60s: (BankPaymentApp) -> Unit,
     onReorderBanks: (List<BankPaymentApp>) -> Unit,
     onToggleFavorite: (BankPaymentApp) -> Unit = {},
+    isScanning: Boolean = false,
+    onRefreshBanks: () -> Unit = {},
     isScrollable: Boolean = true,
     modifier: Modifier = Modifier,
     bottomContent: @Composable () -> Unit = {}
@@ -128,11 +130,18 @@ fun AppleCardStack(
     var isNfcRadarPulsing by remember { mutableStateOf(false) }
     var dragStartOrder by remember { mutableStateOf<List<String>>(emptyList()) }
 
-    val localBanks = remember { mutableStateListOf<BankPaymentApp>() }
+    val localBanks = remember(banks) {
+        mutableStateListOf<BankPaymentApp>().apply {
+            addAll(banks.distinctBy { it.packageName })
+        }
+    }
     LaunchedEffect(banks) {
         if (motion.draggingKey == null) {
-            localBanks.clear()
-            localBanks.addAll(banks.distinctBy { it.packageName })
+            val distinct = banks.distinctBy { it.packageName }
+            if (localBanks.map { it.packageName } != distinct.map { it.packageName }) {
+                localBanks.clear()
+                localBanks.addAll(distinct)
+            }
             val spotKey = spotlight.key
             if (spotKey != null && localBanks.none { it.packageName == spotKey }) {
                 spotlight.dismissNow()
@@ -294,6 +303,17 @@ fun AppleCardStack(
                                     hitResult
                                 }
                             },
+                            onCardTouchDown = { pkg ->
+                                val idx = indexOfKey(pkg)
+                                if (idx > 0) {
+                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    moveToFront(pkg)
+                                    val bank = localBanks.firstOrNull { it.packageName == pkg }
+                                    if (bank != null) {
+                                        onSelectBank(bank)
+                                    }
+                                }
+                            },
                             onCardTap = { pkg ->
                                 val bank = localBanks.firstOrNull { it.packageName == pkg }
                                 if (bank != null) {
@@ -407,11 +427,7 @@ fun AppleCardStack(
                                         isDefaultNfc = activeBank?.packageName == bank.packageName,
                                         isFocused = false,
                                         isDragging = isDragging,
-                                        onToggleFavorite = { onToggleFavorite(bank) },
-                                        modifier = slotModifier.staggeredEntrance(
-                                            order = (localBanks.size - 1 - stackIndex).coerceIn(0, 10),
-                                            reduceMotion = reduceMotion
-                                        )
+                                        modifier = slotModifier
                                     )
                                 }
                             }
@@ -435,6 +451,8 @@ fun AppleCardStack(
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
+            } else if (isScanning) {
+                CardStackSkeleton()
             }
 
             bottomContent()
@@ -705,17 +723,24 @@ private fun ApplePaySpotlightPrompt(
 }
 
 
-private fun Modifier.staggeredEntrance(order: Int, reduceMotion: Boolean): Modifier = composed {
-    val progress = remember { Animatable(if (reduceMotion) 1f else 0f) }
-    LaunchedEffect(Unit) {
-        if (!reduceMotion) {
-            delay(order * 35L)
-            progress.animateTo(1f, tween(durationMillis = 300))
+@Composable
+private fun CardStackSkeleton() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        repeat(2) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(BANK_CARD_HEIGHT)
+                    .clip(RoundedCornerShape(WaultTokens.CardRadius))
+                    .background(WaultTokens.Bg2)
+                    .border(1.dp, WaultTokens.Stroke, RoundedCornerShape(WaultTokens.CardRadius))
+            )
         }
-    }
-    graphicsLayer {
-        alpha = progress.value
-        translationY = (1f - progress.value) * 18.dp.toPx()
     }
 }
 

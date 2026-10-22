@@ -29,6 +29,8 @@ fun PaymentStackSection(
         onActivateTemp60s = onActivateTemp60s,
         onReorderBanks = onReorderBanks,
         onToggleFavorite = onToggleFavorite,
+        isScanning = isScanning,
+        onRefreshBanks = onRefreshBanks,
         isScrollable = isScrollable,
         modifier = modifier,
         bottomContent = bottomContent

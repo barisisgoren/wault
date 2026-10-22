@@ -396,6 +396,7 @@ class WaultViewModel(
         paymentNetwork: String?,
         isPrimary: Boolean,
         isHidden: Boolean,
+        isFavorite: Boolean = bank.isFavorite,
         showToast: Boolean = true
     ) {
         viewModelScope.launch {
@@ -427,7 +428,7 @@ class WaultViewModel(
                 isPrimary = isPrimary && !isHidden,
                 isHidden = isHidden,
                 sortOrder = previousOverride?.sortOrder ?: bank.sortOrder,
-                isFavorite = previousOverride?.isFavorite ?: bank.isFavorite
+                isFavorite = isFavorite
             )
             bankOverrideDao.upsertOverride(entity)
             closeEditBankSheet()
