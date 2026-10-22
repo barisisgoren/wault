@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -59,6 +60,7 @@ fun WaultTopBar(
     onSearchQueryChange: (String) -> Unit = {},
     onToggleSearch: () -> Unit = {},
     onQuickAddClick: () -> Unit = {},
+    onSettingsClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -84,7 +86,7 @@ fun WaultTopBar(
                 )
             )
 
-            // Right: Minimalist Search and Add action buttons
+            // Right: Minimalist Search, Add, and Settings (Gear) action buttons
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -99,6 +101,12 @@ fun WaultTopBar(
                     icon = Icons.Rounded.Add,
                     contentDescription = "Hızlı Ekle",
                     onClick = onQuickAddClick
+                )
+
+                AppleTopActionButton(
+                    icon = Icons.Rounded.Settings,
+                    contentDescription = "Ayarlar",
+                    onClick = onSettingsClick
                 )
             }
         }

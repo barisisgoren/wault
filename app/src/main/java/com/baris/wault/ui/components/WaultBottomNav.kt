@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Contactless
 import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.QrCode2
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -54,9 +55,9 @@ enum class WaultTab(
         label = "Ödeme",
         icon = Icons.Rounded.Bolt
     ),
-    OTHER(
+    PASSES(
         label = "Diğer",
-        icon = Icons.Rounded.Tune
+        icon = Icons.Rounded.QrCode2
     )
 }
 

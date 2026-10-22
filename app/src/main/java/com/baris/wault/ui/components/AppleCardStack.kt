@@ -377,7 +377,7 @@ fun AppleCardStack(
                 ) {
                     localBanks.forEachIndexed { stackIndex, bank ->
                         key(bank.packageName) {
-                            val cardScaleX = (1f - stackIndex * 0.015f).coerceAtLeast(0.88f)
+                            val cardScaleX = 1f
                             val cardZIndex = (localBanks.size - stackIndex).toFloat()
 
                             StackCardSlot(

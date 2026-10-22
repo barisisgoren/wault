@@ -160,6 +160,7 @@ fun WaultMainScreen(
     var isSearchActive by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedCategory by rememberSaveable { mutableStateOf(WaultCardCategory.ALL) }
+    var isSettingsSheetOpen by rememberSaveable { mutableStateOf(false) }
 
     val filteredBanks = remember(uiState.installedBanks, searchQuery, selectedCategory) {
         var list = uiState.installedBanks
@@ -218,7 +219,8 @@ fun WaultMainScreen(
                     isSearchActive = !isSearchActive
                     if (!isSearchActive) searchQuery = ""
                 },
-                onQuickAddClick = { onOpenAddPassSheet(null) }
+                onQuickAddClick = { onOpenAddPassSheet(null) },
+                onSettingsClick = { isSettingsSheetOpen = true }
             )
         }
     ) { innerPadding ->
@@ -365,16 +367,21 @@ fun WaultMainScreen(
                             )
                         }
 
-                        WaultTab.OTHER -> {
-                            WaultOtherSection(
-                                capability = uiState.shizukuCapability,
-                                hiddenBanksCount = uiState.hiddenBanks.size,
-                                onOpenShizukuDialog = onShizukuPillClick,
-                                onRequestShizukuPermission = onRequestShizukuPermission,
-                                onOpenHiddenBanks = onOpenHiddenBanksSheet,
-                                onRefreshBanks = onRefreshBanks,
-                                modifier = Modifier.fillMaxSize()
-                            )
+                        WaultTab.PASSES -> {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState())
+                                    .padding(horizontal = 20.dp, vertical = 8.dp)
+                            ) {
+                                PassGridSection(
+                                    passes = filteredPasses.ifEmpty { uiState.loyaltyCards },
+                                    onPassClick = onOpenFullscreenPass,
+                                    onPassEdit = { card -> onOpenAddPassSheet(card) },
+                                    onAddPassClick = { onOpenAddPassSheet(null) }
+                                )
+                                Spacer(modifier = Modifier.height(110.dp))
+                            }
                         }
                     }
                 }
@@ -408,6 +415,26 @@ fun WaultMainScreen(
                 onOpenHiddenBanksSheet()
             }
         )
+    }
+
+    // Settings & System Preferences Modal Sheet triggered by the top-right Gear button
+    if (isSettingsSheetOpen) {
+        ModalBottomSheet(
+            onDismissRequest = { isSettingsSheetOpen = false },
+            containerColor = WaultSurfaceDark
+        ) {
+            WaultOtherSection(
+                capability = uiState.shizukuCapability,
+                hiddenBanksCount = uiState.hiddenBanks.size,
+                onOpenShizukuDialog = onShizukuPillClick,
+                onRequestShizukuPermission = onRequestShizukuPermission,
+                onOpenHiddenBanks = {
+                    isSettingsSheetOpen = false
+                    onOpenHiddenBanksSheet()
+                },
+                onRefreshBanks = onRefreshBanks
+            )
+        }
     }
 
     // Full-Screen Optical Pass Modal

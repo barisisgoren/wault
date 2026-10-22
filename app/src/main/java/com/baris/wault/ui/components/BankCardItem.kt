@@ -189,7 +189,7 @@ fun BankCardItem(
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             // Top Row (Visible in 32.dp peek strip):
-            // Left = Clean Bank Title, Right = Payment Network Logo (VISA / Mastercard / TROY / Amex)
+            // Left = Clean Bank Title & Icon, Right = Favorite Star Button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -224,37 +224,29 @@ fun BankCardItem(
                     )
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    AppleCardNetworkLogo(network = effectiveNetwork)
-
-                    if (onToggleFavorite != null) {
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (bank.isFavorite) Color(0xFFFFD60A).copy(alpha = 0.22f)
-                                    else Color.White.copy(alpha = 0.12f)
-                                )
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = onToggleFavorite
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = if (bank.isFavorite) Icons.Rounded.Star else Icons.Rounded.StarBorder,
-                                contentDescription = if (bank.isFavorite) "Favorilerden Çıkar" else "Favorilere Ekle",
-                                tint = if (bank.isFavorite) Color(0xFFFFD60A) else Color.White.copy(alpha = 0.75f),
-                                modifier = Modifier.size(17.dp)
+                if (onToggleFavorite != null) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (bank.isFavorite) Color(0xFFFFD60A).copy(alpha = 0.22f)
+                                else Color.White.copy(alpha = 0.12f)
                             )
-                        }
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = onToggleFavorite
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (bank.isFavorite) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+                            contentDescription = if (bank.isFavorite) "Favorilerden Çıkar" else "Favorilere Ekle",
+                            tint = if (bank.isFavorite) Color(0xFFFFD60A) else Color.White.copy(alpha = 0.75f),
+                            modifier = Modifier.size(17.dp)
+                        )
                     }
                 }
             }
@@ -274,9 +266,10 @@ fun BankCardItem(
                 )
             }
 
-            // Bottom-Left: ONLY Masked Card Number (•••• 0454) — zero technical clutter
+            // Bottom Row: Left = Masked Card Number (•••• 2639), Right = Payment Network Logo (VISA / MC / TROY / AMEX)
             Row(
                 modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -289,6 +282,8 @@ fun BankCardItem(
                         letterSpacing = 2.sp
                     )
                 )
+
+                AppleCardNetworkLogo(network = effectiveNetwork)
             }
         }
     }
