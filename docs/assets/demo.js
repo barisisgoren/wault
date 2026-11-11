@@ -13,14 +13,14 @@
   ];
   const AMOUNTS = ['₺248,50', '₺86,90', '₺1.120,00', '₺37,25', '₺512,40', '₺14,99'];
 
-  // Sahne düzenleri (sahne koordinatları). Dar ekranda cihazlar üstte, telefon altta.
+  // Sahne düzenleri (sahne koordinatları). Dar ekranda cihazlar üstte, telefon altta;
+  // durum yazıları sahnenin dışına taşınır ki küçülmesin. minX: soldaki Çevir tuşu sahnede kalsın.
   const LAYOUTS = {
-    wide: { w: 1100, h: 700, scanner: [24, 120, 1], pos: [846, 150, 1], phone: [575, 330] },
-    narrow: { w: 440, h: 1010, scanner: [0, 34, 0.66], pos: [276, 40, 0.7], phone: [220, 680] },
+    wide: { w: 1100, h: 700, scanner: [24, 120, 1], pos: [846, 150, 1], phone: [575, 330], minX: 205 },
+    narrow: { w: 400, h: 830, scanner: [0, 28, 0.52], pos: [282, 80, 0.52], phone: [215, 560], minX: 215 },
   };
   const PHONE_W = 250, PHONE_H = 520;
   const STACK_TOP = 82, STRIP = 44, COLLAPSED_TOP = 448;
-  const MIN_X = PHONE_W / 2 + 80; // soldaki Çevir tuşu sahnede kalsın
 
   const $ = (s, r = document) => r.querySelector(s);
   const stageHost = $('#stageHost'), stage = $('#stage');
@@ -28,10 +28,10 @@
   const wrap = $('#phoneWrap'), tilt = $('#phoneTilt'), phone = $('#phone'), inner = $('#phoneInner');
   const screen = $('#screen'), stackEl = $('#stack'), detail = $('#detail'), readybar = $('#readybar');
   const paid = $('#paid'), toastEl = $('#toast'), flipBtn = $('#flipBtn');
+  const scanReadout = $('.readout', scanner), posReadout = $('.pos-readout', pos), stageStatus = $('#stageStatus');
 
   const S = {
     selected: null,
-    ready: 'b1',
     flipped: false,
     amount: AMOUNTS[0],
     sound: true,
@@ -45,7 +45,7 @@
   /* ───────────── küçük yardımcılar ───────────── */
   const card = id => CARDS.find(c => c.id === id);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const svgUse = (id, cls = '') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><use href="#${id}"/></svg>`;
+  const svgUse = (id, cls = '') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#${id}"/></svg>`;
 
   function netLogo(c) {
     if (!c.net) return '';
@@ -136,7 +136,7 @@
     let k = 0;
     CARDS.forEach((c, i) => {
       const el = stackEl.children[i];
-      el.classList.toggle('is-ready', c.id === S.ready);
+      el.classList.toggle('is-ready', c.id === S.selected && c.kind === 'pay');
       let y, s = 1;
       if (!S.selected) y = STACK_TOP + i * STRIP;
       else if (c.id === S.selected) y = STACK_TOP;
@@ -149,12 +149,10 @@
     renderDetail();
   }
 
+  // Yığın görünümünde açık kart yok: ödeme için bir banka kartı açılmalı
   function renderReadyBar() {
-    const c = card(S.ready);
-    readybar.style.setProperty('--card', c.color);
     readybar.innerHTML = `<span class="rb-ico">${svgUse('i-contactless')}</span>
-      <span class="rb-text"><b>Ödemeye hazır</b><small>${c.title} · •••• ${c.last4}</small></span>
-      <span class="rb-chip"></span>`;
+      <span class="rb-text"><b>Ödeme kartı seçilmedi</b><small>Bir banka kartına dokun, sonra POS'a yaklaştır</small></span>`;
   }
 
   function renderDetail() {
@@ -164,7 +162,7 @@
       detail.innerHTML = `<div class="d-panel d-center">
           <div class="d-big-cl">${svgUse('i-contactless')}</div>
           <div class="d-head">Ödemeye hazır</div>
-          <div class="d-foot">Telefonu çevir ve arkasını terminale yaklaştır.</div>
+          <div class="d-foot">Telefonu terminale yaklaştır.</div>
         </div>
         <div class="d-row"><span class="c-ico">${svgUse('i-card')}</span><span><b>${c.title}</b><small>Ödeme uygulaması</small></span></div>`;
     } else if (c.kind === 'loyalty') {
@@ -191,13 +189,15 @@
     if (S.selected === id) { S.selected = null; layoutCards(); return; }
     S.selected = id;
     const c = card(id);
-    if (c.kind === 'pay' && S.ready !== id) {
-      S.ready = id;
+    if (c.kind === 'pay') {
       toast(`Ödeme uygulaması: ${c.title}`);
-      if (['idle', 'near'].includes(pos.dataset.state)) setPos(pos.dataset.state);
+      mission('tap');
     }
-    if (c.kind === 'pay') mission('tap');
     layoutCards();
+    // Telefon zaten bir cihazın önündeyse yeni açılan kartla yeniden okut
+    const [scanZone, posZone] = zones;
+    if (c.kind === 'pay' && posZone.inside && posZone.armed && !posBusy) posZone.schedule(550);
+    if (c.kind === 'loyalty' && scanZone.inside && scanZone.armed) scanZone.schedule(550);
   }
 
   function showPaid(c, amount) {
@@ -229,37 +229,50 @@
   }
 
   /* ───────────── POS ───────────── */
-  let posBusy = false;
-  function setPos(state) {
+  let posBusy = false, posErrTimer;
+  // title/sub yalnızca 'ok' ve 'err' durumlarında verilir
+  function setPos(state, title, sub) {
     pos.dataset.state = state;
-    const c = card(S.ready);
+    posReadout.dataset.state = state;
     const text = {
       idle: [`Terminal hazır · ${S.amount}`, 'Kartı ya da telefonu yaklaştırın'],
       near: [`Bekleniyor · ${S.amount}`, 'Telefonu sabit tut'],
       reading: ['Okunuyor', 'Telefonu çekmeyin'],
-      ok: [`Onaylandı · ${S.lastAmount || S.amount}`, `${c.title} •••• ${c.last4} · temassız`],
-    }[state];
-    $('.pos-readout .readout-text', pos).innerHTML = `<b>${text[0]}</b><small>${text[1]}</small>`;
+    }[state] || [title, sub];
+    $('.readout-text', posReadout).innerHTML = `<b>${text[0]}</b><small>${text[1]}</small>`;
+    if (state === 'err') {
+      $('.ps-err-title', pos).textContent = title;
+      $('.ps-err-sub', pos).textContent = sub;
+    }
   }
   function posLeds(n) { pos.querySelectorAll('.pos-leds i').forEach((l, i) => l.classList.toggle('on', i < n)); }
 
+  function posReject(title, sub, phoneMsg) {
+    beepWarn();
+    setPos('err', title, sub);
+    if (phoneMsg) toast(phoneMsg);
+    clearTimeout(posErrTimer);
+    posErrTimer = setTimeout(() => { if (pos.dataset.state === 'err') setPos(zones[1].inside ? 'near' : 'idle'); }, 2800);
+    return false; // bölge kurulu kalır: kart açılınca ya da telefon yeniden yaklaşınca tekrar okunur
+  }
+
   function posRead() {
     if (posBusy) return false;
-    if (!S.flipped) {
-      // Temassız anten telefonun arkasında: yaklaşınca telefon arkasını kendisi çevirir.
-      // flip() çevirme bitince bölgeyi yeniden okutur.
-      setPos('near');
-      flip(true);
-      return false;
+    // Ödeme yalnızca telefonda açık bir banka kartıyla yapılır
+    const c = S.selected && card(S.selected);
+    if (!c) {
+      readybar.classList.remove('pulse'); void readybar.offsetWidth; readybar.classList.add('pulse');
+      return posReject('Kart seçilmedi', 'Telefonda bir banka kartı açın', 'Ödemek için önce bir banka kartına dokun');
     }
+    if (c.kind === 'loyalty') return posReject('Ödeme kartı değil', `${c.title} bir üyelik kartı`, 'Üyelik kartıyla ödeme yapılmaz');
+    if (c.kind === 'show') return posReject('Kart okunamadı', 'Sahte kart ödeme yapmaz', 'Sahte kart terminalle konuşmaz');
+    clearTimeout(posErrTimer);
     posBusy = true;
-    const c = card(S.ready);
     const amount = S.amount;
-    S.lastAmount = amount;
     setPos('reading');
     [1, 2, 3, 4].forEach(n => setTimeout(() => posLeds(n), n * 170));
     setTimeout(() => {
-      setPos('ok');
+      setPos('ok', `Onaylandı · ${amount}`, `${c.title} •••• ${c.last4} · temassız`);
       $('.pos-ok-amount', pos).textContent = amount;
       $('.r-amount', pos).textContent = amount.replace('₺', '') + ' TL';
       $('.r-card', pos).textContent = `${c.title} •••• ${c.last4}`;
@@ -268,7 +281,6 @@
       beepOk();
       showPaid(c, amount);
       mission('pay');
-      setTimeout(() => { if (S.flipped) flip(false); }, 1100);
       setTimeout(posReset, 5200);
     }, 900);
     return true;
@@ -290,9 +302,13 @@
 
   /* ───────────── barkod okuyucu ───────────── */
   let scanTimer;
-  function setScanner(state, title, sub) {
+  function setScanState(state) {
     scanner.dataset.state = state;
-    $('.readout-text', scanner).innerHTML = `<b>${title}</b><small>${sub}</small>`;
+    scanReadout.dataset.state = state;
+  }
+  function setScanner(state, title, sub) {
+    setScanState(state);
+    $('.readout-text', scanReadout).innerHTML = `<b>${title}</b><small>${sub}</small>`;
   }
   function scannerIdle() {
     setScanner(zones[0].inside ? 'near' : 'idle', 'Okuyucu hazır', 'Barkodu ışığa tut');
@@ -334,11 +350,14 @@
           if (onRead()) z.armed = false; // başarılı okumadan sonra çıkıp tekrar gelmek gerekir
         }, delay);
       },
-      update(phoneRect) {
+      // Telefonun bölgeyi kapladığı oran (0-1)
+      ratio(phoneRect) {
         const r = el.getBoundingClientRect();
         const w = Math.max(0, Math.min(phoneRect.right, r.right) - Math.max(phoneRect.left, r.left));
         const h = Math.max(0, Math.min(phoneRect.bottom, r.bottom) - Math.max(phoneRect.top, r.top));
-        const inside = (w * h) / (r.width * r.height) > threshold;
+        return (w * h) / (r.width * r.height);
+      },
+      set(inside) {
         if (inside === z.inside) return;
         z.inside = inside;
         onNear(inside);
@@ -350,16 +369,20 @@
   }
   const zones = [
     makeZone($('.zone', scanner), scanner, 0.3, scanRead, near => {
-      if (['idle', 'near'].includes(scanner.dataset.state)) scanner.dataset.state = near ? 'near' : 'idle';
+      if (['idle', 'near'].includes(scanner.dataset.state)) setScanState(near ? 'near' : 'idle');
     }),
     makeZone($('.zone', pos), pos, 0.42, posRead, near => {
       wrap.classList.toggle('near-pos', near);
       if (['idle', 'near'].includes(pos.dataset.state)) setPos(near ? 'near' : 'idle');
     }),
   ];
+  // Telefon aynı anda yalnızca bir cihaza okutulur: eşiği geçenlerden en çok kapladığı kazanır
   function checkZones() {
     const r = phone.getBoundingClientRect();
-    zones.forEach(z => z.update(r));
+    const ratios = zones.map(z => z.ratio(r));
+    let best = -1;
+    ratios.forEach((v, i) => { if (v > zones[i].threshold && (best < 0 || v > ratios[best])) best = i; });
+    zones.forEach((z, i) => z.set(i === best));
   }
 
   /* ───────────── sahne ve sürükleme ───────────── */
@@ -383,6 +406,11 @@
     stageHost.style.height = next.h * scale + 'px';
     if (next !== layout) {
       layout = next;
+      const narrow = layout === LAYOUTS.narrow;
+      stage.classList.toggle('narrow', narrow);
+      // Dar ekranda durum yazıları sahne ölçeğiyle küçülmesin: sahnenin üstüne taşınır
+      if (narrow) stageStatus.append(scanReadout, posReadout);
+      else { scanner.append(scanReadout); pos.append(posReadout); }
       placeDevice(scanner, layout.scanner);
       placeDevice(pos, layout.pos);
       [P.x, P.y] = layout.phone;
@@ -406,7 +434,7 @@
       try { wrap.setPointerCapture(e.pointerId); } catch (_) {}
     }
     e.preventDefault();
-    P.x = clamp(drag.ox + dx, MIN_X, layout.w - 70);
+    P.x = clamp(drag.ox + dx, layout.minX, layout.w - 70);
     P.y = clamp(drag.oy + dy, 150, layout.h - 120);
     const now = performance.now();
     const v = (e.clientX - drag.lx) / Math.max(1, now - drag.lt);
@@ -440,7 +468,7 @@
     const moves = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
     if (moves[e.key] && !e.target.closest('.card, button')) {
       e.preventDefault();
-      P.x = clamp(P.x + moves[e.key][0], MIN_X, layout.w - 70);
+      P.x = clamp(P.x + moves[e.key][0], layout.minX, layout.w - 70);
       P.y = clamp(P.y + moves[e.key][1], 150, layout.h - 120);
       placePhone(); checkZones();
     }
@@ -463,7 +491,7 @@
     soundBtn.setAttribute('aria-pressed', String(S.sound));
   });
   $('#resetBtn').addEventListener('click', () => {
-    S.selected = null; S.ready = 'b1'; S.missions.clear();
+    S.selected = null; S.missions.clear();
     document.querySelectorAll('.missions li').forEach(li => li.classList.remove('done'));
     hidePaid();
     if (S.flipped) flip(false);

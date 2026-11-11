@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wault · Demo</title>
+<meta name="description" content="Wault demosu: telefonu sürükle, POS ve barkod okuyucuyla dene. Tarayıcıda çalışır.">
+<meta name="theme-color" content="#F3F4F6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://wault.live/demo.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Wault">
+<meta property="og:title" content="Wault · Demo">
+<meta property="og:description" content="Wault demosu: telefonu sürükle, POS ve barkod okuyucuyla dene. Tarayıcıda çalışır.">
+<meta property="og:url" content="https://wault.live/demo.html">
+<meta property="og:locale" content="tr_TR">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav-row">
+    <a class="brand" href="index.html" aria-label="Wault ana sayfa">
+      <img src="assets/icon.svg" alt="" width="28" height="28">
+      <span>Wault</span>
+    </a>
+    <nav class="nav-links" id="navLinks" aria-label="Sayfalar">
+      <a href="demo.html" aria-current="page">Demo</a>
+      <a href="ozellikler.html">Özellikler</a>
+      <a href="kurulum.html">Kurulum</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="btn btn-small" href="https://github.com/barisisgoren/wault/releases">İndir</a>
+      <button class="menu-btn" type="button" aria-controls="navLinks" aria-expanded="false" aria-label="Menü">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path class="m-open" d="M4 7h16M4 12h16M4 17h16"/><path class="m-close" d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="top" class="page">
+  <!-- ───────────── DEMO ───────────── -->
+  <section id="demo" class="demo wrap" aria-labelledby="demo-title">
+    <div class="demo-head">
+      <div>
+        <h2 id="demo-title">Telefonu masada gezdir.</h2>
+        <p class="sub">Telefonu tutup sürükle. Ödemek için bir banka kartı aç ve telefonu POS'a yaklaştır, arkasını çevirmen gerekmez. Market kartını açıp barkodu okuyucuya tutabilirsin.</p>
+      </div>
+      <ol class="missions" aria-label="Denenecekler">
+        <li data-mission="tap"><span class="tick" aria-hidden="true"></span>Bir banka kartına dokun</li>
+        <li data-mission="pay"><span class="tick" aria-hidden="true"></span>Kart açıkken telefonu POS'a yaklaştır</li>
+        <li data-mission="scan"><span class="tick" aria-hidden="true"></span>Market kartını aç, barkodu okuyucuya tut</li>
+      </ol>
+    </div>
+
+    <div class="stage-status" id="stageStatus"></div>
+    <div class="stage-host" id="stageHost">
+      <div class="stage" id="stage">
+
+        <!-- Barkod okuyucu -->
+        <div class="device scanner" id="scanner" data-state="idle">
+          <svg class="scanner-art" viewBox="0 0 260 420" aria-hidden="true">
+            <defs>
+              <linearGradient id="scBody" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#3a3d44"/><stop offset="1" stop-color="#1b1d21"/>
+              </linearGradient>
+              <linearGradient id="scBase" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#2c2f35"/><stop offset="1" stop-color="#16181c"/>
+              </linearGradient>
+            </defs>
+            <ellipse cx="110" cy="392" rx="96" ry="18" fill="rgba(0,0,0,.18)"/>
+            <path d="M30 372c0-14 12-24 30-24h100c18 0 30 10 30 24v6c0 8-8 12-18 12H48c-10 0-18-4-18-12z" fill="url(#scBase)"/>
+            <path d="M92 352l6-120h24l6 120z" fill="#24272c"/>
+            <path d="M40 88c0-34 26-58 62-58h66c30 0 52 20 56 50l6 52c4 34-18 62-52 66l-70 8c-38 4-68-22-68-58z" fill="url(#scBody)"/>
+            <path d="M206 92l18-6c6-2 12 2 12 9l4 56c0 7-5 12-11 12l-18 2z" fill="#0d0e10"/>
+            <path d="M214 100l12-3 3 52-12 2z" class="scanner-window"/>
+            <rect x="70" y="58" width="44" height="8" rx="4" fill="#4a4e57"/>
+            <circle cx="132" cy="62" r="5" class="scanner-led"/>
+            <text x="78" y="166" fill="#6d727c" font-size="13" font-weight="600" letter-spacing="2">SCAN</text>
+          </svg>
+          <div class="beam" aria-hidden="true"><span class="beam-line"></span></div>
+          <div class="zone" data-zone="scanner"></div>
+          <div class="readout" role="status" aria-live="polite">
+            <span class="readout-dot"></span>
+            <span class="readout-text"><b>Okuyucu hazır</b><small>Barkodu ışığa tut</small></span>
+          </div>
+        </div>
+
+        <!-- POS cihazı -->
+        <div class="device pos" id="pos" data-state="idle">
+          <div class="receipt" aria-hidden="true">
+            <div class="receipt-paper">
+              <b>DEMO MARKET</b>
+              <span>SATIŞ</span>
+              <span class="r-row"><i>Tutar</i><i class="r-amount">248,50 TL</i></span>
+              <span class="r-row"><i>Kart</i><i class="r-card">Banka 1 •••• 4417</i></span>
+              <span>TEMASSIZ</span>
+              <b>ONAYLANDI</b>
+            </div>
+          </div>
+          <div class="pos-body">
+            <div class="pos-leds" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+            <div class="pos-screen" role="status" aria-live="polite">
+              <div class="ps ps-idle">
+                <small>Tutar</small>
+                <strong class="pos-amount">₺248,50</strong>
+                <svg class="cl-big" viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#i-contactless"/></svg>
+                <span>Kartı ya da telefonu yaklaştırın</span>
+              </div>
+              <div class="ps ps-reading">
+                <div class="spinner" aria-hidden="true"></div>
+                <span>Okunuyor, çekmeyin</span>
+              </div>
+              <div class="ps ps-ok">
+                <svg class="ok-mark" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="23"/><path d="M15 27l7 7 15-16"/></svg>
+                <strong>Onaylandı</strong>
+                <span class="pos-ok-amount">₺248,50</span>
+              </div>
+              <div class="ps ps-err">
+                <svg class="err-mark" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="23"/><path d="M26 15v15M26 37v.5"/></svg>
+                <strong class="ps-err-title">Kart seçilmedi</strong>
+                <span class="ps-err-sub">Telefonda bir banka kartı açın</span>
+              </div>
+            </div>
+            <div class="pos-keys" aria-hidden="true">
+              <i>1</i><i>2</i><i>3</i><i>4</i><i>5</i><i>6</i><i>7</i><i>8</i><i>9</i><i class="k-x">✕</i><i>0</i><i class="k-ok">✓</i>
+            </div>
+          </div>
+          <div class="zone" data-zone="pos"></div>
+          <div class="readout pos-readout" role="status" aria-live="polite">
+            <span class="readout-dot"></span>
+            <span class="readout-text"><b>Terminal hazır · ₺248,50</b><small>Kartı ya da telefonu yaklaştırın</small></span>
+          </div>
+        </div>
+
+        <!-- Telefon -->
+        <div class="phone-wrap" id="phoneWrap">
+          <div class="phone-tilt" id="phoneTilt">
+            <div class="phone" id="phone" aria-label="Wault uygulamasının çalışan demosu">
+              <div class="phone-inner" id="phoneInner">
+
+                <!-- ön yüz -->
+                <div class="face front">
+                  <div class="screen" id="screen">
+                    <div class="statusbar" aria-hidden="true">
+                      <span>9:41</span>
+                      <span class="island"></span>
+                      <span class="sb-icons"><i class="sig"></i><i class="bat"></i></span>
+                    </div>
+                    <div class="app-header">
+                      <h3>Wault</h3>
+                      <div class="hdr-btns">
+                        <span class="round-btn" aria-hidden="true">+</span>
+                        <span class="round-btn" aria-hidden="true">···</span>
+                      </div>
+                      <button class="done-btn" type="button" id="doneBtn">Bitti</button>
+                    </div>
+                    <div class="toast" id="toast"></div>
+                    <div class="stack" id="stack"></div>
+                    <div class="detail" id="detail"></div>
+                    <div class="readybar" id="readybar"></div>
+                    <div class="paid" id="paid" aria-hidden="true">
+                      <svg class="paid-ring" viewBox="0 0 120 120"><circle cx="60" cy="60" r="52"/><path d="M38 62l15 15 30-32"/></svg>
+                      <span class="paid-label">Ödendi</span>
+                      <strong class="paid-amount">₺248,50</strong>
+                      <span class="paid-card"><i class="chip"></i><span class="paid-card-text">Banka 1  •••• 4417</span></span>
+                      <span class="paid-note">Ödemeyi bankanın uygulaması yaptı. Wault onayı gösteriyor.</span>
+                      <button class="paid-btn" type="button" id="paidDone">Tamam</button>
+                    </div>
+                    <div class="scanline" aria-hidden="true"></div>
+                  </div>
+                </div>
+
+                <!-- arka yüz -->
+                <div class="face back" aria-hidden="true">
+                  <div class="cam-island"><i class="lens l1"></i><i class="lens l2"></i><i class="lens l3"></i><i class="flash"></i></div>
+                  <div class="nfc-mark">
+                    <svg viewBox="0 0 24 24"><use href="assets/icons.svg#i-contactless"/></svg>
+                    <span>NFC</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button class="flip-btn" type="button" id="flipBtn" aria-pressed="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#i-flip"/></svg>
+            <span>Çevir</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="stage-bar">
+      <p class="demo-foot">Demo tamamen tarayıcıda çalışır, hiçbir yere bağlanmaz. Kartlar, tutarlar ve barkod örnektir.</p>
+      <div class="stage-tools">
+        <button type="button" class="tool" id="soundBtn" aria-pressed="true">Ses açık</button>
+        <button type="button" class="tool" id="resetBtn">Baştan al</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p><a href="https://github.com/barisisgoren/wault">GitHub</a> · MIT lisansı</p>
+    <p class="fine">Visa, Mastercard, American Express ve TROY logoları sahiplerinin ticari markalarıdır. Demodaki bankalar, kartlar ve tutarlar örnektir. Uygulama arayüzü şu an Türkçe.</p>
+  </div>
+</footer>
+
+<script src="assets/demo.js"></script>
+<script src="assets/site.js"></script>
+</body>
+</html>

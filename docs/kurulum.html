@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wault · Kurulum</title>
+<meta name="description" content="Wault kurulumu: hazır APK ya da kaynak kodundan derleme.">
+<meta name="theme-color" content="#F3F4F6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://wault.live/kurulum.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Wault">
+<meta property="og:title" content="Wault · Kurulum">
+<meta property="og:description" content="Wault kurulumu: hazır APK ya da kaynak kodundan derleme.">
+<meta property="og:url" content="https://wault.live/kurulum.html">
+<meta property="og:locale" content="tr_TR">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav-row">
+    <a class="brand" href="index.html" aria-label="Wault ana sayfa">
+      <img src="assets/icon.svg" alt="" width="28" height="28">
+      <span>Wault</span>
+    </a>
+    <nav class="nav-links" id="navLinks" aria-label="Sayfalar">
+      <a href="demo.html">Demo</a>
+      <a href="ozellikler.html">Özellikler</a>
+      <a href="kurulum.html" aria-current="page">Kurulum</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="btn btn-small" href="https://github.com/barisisgoren/wault/releases">İndir</a>
+      <button class="menu-btn" type="button" aria-controls="navLinks" aria-expanded="false" aria-label="Menü">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path class="m-open" d="M4 7h16M4 12h16M4 17h16"/><path class="m-close" d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="top" class="page">
+  <section id="kurulum" class="wrap install" aria-labelledby="i-title">
+    <h2 id="i-title">Kurulum</h2>
+    <div class="install-grid">
+      <div class="panel">
+        <h3>Hazır APK</h3>
+        <p><a href="https://github.com/barisisgoren/wault/releases">Releases</a> sayfasından <code>Wault-*.apk</code> dosyasını indir ve kur. APK, herkese açık Android debug anahtarıyla imzalı. Kişisel kullanım için uygun, mağaza imzası değil.</p>
+      </div>
+      <div class="panel">
+        <h3>Kaynaktan derle</h3>
+        <pre><code>./gradlew assembleDebug
+./gradlew testDebugUnitTest</code></pre>
+        <p>Kotlin ve Jetpack Compose. Arayüz testleri Robolectric ile bilgisayarda çalışır, telefon gerekmez.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p><a href="https://github.com/barisisgoren/wault">GitHub</a> · MIT lisansı</p>
+    <p class="fine">Visa, Mastercard, American Express ve TROY logoları sahiplerinin ticari markalarıdır. Demodaki bankalar, kartlar ve tutarlar örnektir. Uygulama arayüzü şu an Türkçe.</p>
+  </div>
+</footer>
+
+
+<script src="assets/site.js"></script>
+</body>
+</html>
