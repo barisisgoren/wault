@@ -112,9 +112,7 @@ class AppFlowTest {
     @Test fun settingsLetThePersonPickStyleThemeAndAccent() {
         rule.waitForText("Migros")
         rule.onNodeWithContentDescription("Ayarlar").performClick()
-        rule.waitForText("Kart stili")
-        rule.onNodeWithText("Gradyan").performClick()
-        rule.waitUntil(5_000) { prefs.state.value.cardStyle == CardStyle.GRADIENT }
+        rule.waitForText("Vurgu rengi")
         // Geliştirici grubunda (debug) da "Koyu" var; ilki Görünüm > Tema
         rule.onAllNodes(hasText("Koyu"))[0].performClick()
         rule.waitUntil(5_000) { prefs.state.value.themeMode == ThemeMode.DARK }

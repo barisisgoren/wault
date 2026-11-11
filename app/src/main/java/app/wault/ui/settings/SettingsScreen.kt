@@ -87,23 +87,8 @@ fun SettingsScreen(
             Spacer(Modifier.height(16.dp))
 
             Group(header = "Görünüm") {
-                // Seçimlerin sonucunu hemen göstermek için küçük bir örnek kart
-                Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                    CardSurface(
-                        WaultCard(
-                            kind = CardKind.SHOWCASE, title = "Önizleme", subtitle = "Kart stili ve vurgu rengi",
-                            artId = "ocean", last4 = "1234", network = CardNetwork.VISA,
-                        ),
-                        Modifier.fillMaxWidth(0.8f), elevation = 6.dp,
-                    )
-                }
-                Separator()
                 ChoiceRow("Tema") {
                     Segmented(ThemeMode.entries, prefs.themeMode, { it.label }, { m -> DevOptions.darkOverride = null; container.prefs.update { it.copy(themeMode = m) } })
-                }
-                Separator()
-                ChoiceRow("Kart stili") {
-                    Segmented(CardStyle.entries, prefs.cardStyle, { it.label }, { st -> container.prefs.update { it.copy(cardStyle = st) } })
                 }
                 Separator()
                 ChoiceRow("Vurgu rengi") {
