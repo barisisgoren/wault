@@ -460,7 +460,7 @@ private fun Stage(
                         if (isDragged) { justDropped = true; return@LaunchedEffect }
                         val spec: AnimationSpec<Float> = when {
                             reduced -> snap()
-                            justDropped -> spring(dampingRatio = 0.82f, stiffness = 150f)
+                            justDropped -> spring(dampingRatio = 0.9f, stiffness = 55f)
                             else -> spring(dampingRatio = 0.8f, stiffness = 380f)
                         }
                         animate(motion.value, liveIdx.toFloat(), 0f, spec) { v, _ -> motion.value = v }
