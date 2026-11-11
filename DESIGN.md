@@ -66,7 +66,7 @@ Karşılama ilk adımında seçilen uygulamalar canlı bir mini yığın olarak 
 - Vitrin kartı ödeme yapmaz ve bunu kendi ekranında söyler; sahte "ödendi" üretilmez.
 - Android varsayılan ödeme uygulamasını sessizce değiştirmeye izin vermez. Shizuku hazırsa rol komutuyla ekran açılmadan değişir, değilse sistem seçicisi açılır.
 - Geçersiz barkod girişte engellenir (özellikle EAN-13 kontrol hanesi).
-- Bankanın tanıtım görselinde örnek ad/numara basılıdır; seçicide bu söylenir.
+- Hazır kart görselleri (`CardCatalog`) şimdilik boş; görseller sonradan eklenecek (ad/numara içermeyen dosyalar). Seçici boşken “hazır görsel yok” der.
 
 ## Test ve doğrulama
 - **Telefonsuz:** `./gradlew testDebugUnitTest`. Robolectric (SDK 34, yerel grafik) ile uygulamanın bütünü bilgisayarda açılır; Compose testleri dokunma, yukarı çekme, uzun basıp sürükleme, ayarları dener. Roborazzi ekran görüntülerini `app/build/test-screenshots/` altına yazar, yani telefonun ekranı kapalıyken de arayüz gözle doğrulanır.

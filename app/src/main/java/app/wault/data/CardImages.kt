@@ -11,12 +11,14 @@ import java.util.UUID
 
 /** Only verified front-facing artwork, bundled for offline use. */
 data class CatalogFace(val id: String, val product: String, val bank: String, val source: String, val network: CardNetwork, val packageHint: String)
+/**
+ * Hazır kart görselleri. Şimdilik boş: görseller sonradan eklenecek.
+ * Eklemek için `app/src/main/assets/card_faces/<id>.webp` dosyasını koy (üzerinde ad/numara olmasın)
+ * ve buraya bir satır yaz, örn.
+ * `CatalogFace("ornek", "Ürün adı", "Banka", "kaynak adresi", CardNetwork.VISA, "paket-adı-parçası")`.
+ */
 object CardCatalog {
-    val all = listOf(
-        CatalogFace("bonus", "Bonus Classic", "Garanti BBVA", "https://www.bonus.com.tr/kredi-kartlari/bonus-classic", CardNetwork.MASTERCARD, "garanti"),
-        CatalogFace("axess", "Axess Platinum", "Akbank", "https://www.axess.com.tr/axess/sayfa/1/386/axess", CardNetwork.MASTERCARD, "akbank"),
-        CatalogFace("world", "Worldcard", "Yapı Kredi", "https://www.worldcard.com.tr/banka-ve-kredi-kartlari", CardNetwork.VISA, "ykb"),
-    )
+    val all = emptyList<CatalogFace>()
 }
 object CardImages {
     private val validRef = Regex("[a-f0-9-]{36}\\.bin")

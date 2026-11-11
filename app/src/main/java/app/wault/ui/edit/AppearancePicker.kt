@@ -109,7 +109,7 @@ fun AppearancePicker(card: WaultCard, onChange: (WaultCard) -> Unit) {
                             }
                         }
                         Text(
-                            "Bankanın tanıtım görselidir; üzerindeki ad ve numara örnektir.",
+                            "Hazır kart görselleridir.",
                             style = WaultType.footnote, color = c.secondary,
                         )
                     }
