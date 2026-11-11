@@ -152,10 +152,10 @@ private fun PaymentDetail(activity: MainActivity, card: WaultCard, env: Environm
     }
 }
 
-private enum class LarpStage { WAIT, AMOUNT }
+private enum class FakeStage { WAIT, AMOUNT }
 
 /**
- * Sahte kart (rol oyunu): önce okuyucuya/etikete değdirilir, sonra tutar girilir; "Öde"ye basınca gerçek ödeme
+ * Sahte kart: önce okuyucuya/etikete değdirilir, sonra tutar girilir; "Öde"ye basınca gerçek ödeme
  * onayıyla aynı tam ekran "Ödendi" anı oynar. Okuyucu modunda telefon kart taklidi yapmaz; terminale hiçbir şey sunulmaz.
  */
 @Composable
@@ -163,18 +163,18 @@ private fun ShowcaseDetail(activity: MainActivity, card: WaultCard, env: Environ
     val haptics = LocalHapticFeedback.current
     val devMode by activity.app.container.prefs.state.collectAsState()
         .let { st -> androidx.compose.runtime.derivedStateOf { st.value.developerMode } }
-    var stage by remember { mutableStateOf(LarpStage.WAIT) }
+    var stage by remember { mutableStateOf(FakeStage.WAIT) }
     var amount by rememberSaveable { mutableStateOf("") }
     val stageNow by rememberUpdatedState(stage)
     DisposableEffect(Unit) {
-        if (activity.nfc.available) activity.nfc.startReading { _ -> if (stageNow == LarpStage.WAIT) stage = LarpStage.AMOUNT }
+        if (activity.nfc.available) activity.nfc.startReading { _ -> if (stageNow == FakeStage.WAIT) stage = FakeStage.AMOUNT }
         onDispose { activity.nfc.stopReading() }
     }
     LaunchedEffect(stage) {
-        if (stage == LarpStage.AMOUNT) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        if (stage == FakeStage.AMOUNT) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
     }
     when (stage) {
-        LarpStage.WAIT -> when {
+        FakeStage.WAIT -> when {
             !env.nfcAvailable -> Status("Bu cihazda NFC yok", null)
             !env.nfcEnabled -> {
                 Status("NFC kapalı", "Telefonu okutmak için NFC'yi aç.")
@@ -186,10 +186,10 @@ private fun ShowcaseDetail(activity: MainActivity, card: WaultCard, env: Environ
             // Geliştirici modunda NFC etiketi olmadan da denenebilir
             if (devMode) {
                 Spacer(Modifier.height(20.dp))
-                TintedButton("Okutmayı simüle et", { stage = LarpStage.AMOUNT }, Modifier.fillMaxWidth())
+                TintedButton("Okutmayı simüle et", { stage = FakeStage.AMOUNT }, Modifier.fillMaxWidth())
             }
         }
-        LarpStage.AMOUNT -> {
+        FakeStage.AMOUNT -> {
             Status("Okundu", "Ödenecek tutarı gir")
             Spacer(Modifier.height(16.dp))
             Group {
@@ -201,7 +201,7 @@ private fun ShowcaseDetail(activity: MainActivity, card: WaultCard, env: Environ
                 if (amount.isNotBlank()) {
                     PaymentEvents.emit(PaidEvent(card.id, "₺" + amount.replace('.', ','), "sahte-kart"))
                     amount = ""
-                    stage = LarpStage.WAIT
+                    stage = FakeStage.WAIT
                 }
             }, Modifier.fillMaxWidth())
         }
