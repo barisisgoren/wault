@@ -9,6 +9,15 @@ Android için cüzdan: ödeme kartların, sadakat kartların, QR/barkodların ve
 
 Kotlin, Jetpack Compose. `minSdk 28`, `targetSdk 36`.
 
+## Kurulum
+
+[Releases](../../releases) sayfasındaki `Wault-*.apk` dosyasını indirip kur. APK, herkese açık debug anahtarıyla imzalıdır (kişisel kullanım içindir, mağaza imzası değildir). Kendi imzanla kullanmak için aşağıdaki gibi derle.
+
+```bash
+./gradlew assembleRelease      # app/build/outputs/apk/release/app-release-unsigned.apk
+apksigner sign --ks <anahtar.jks> --out Wault.apk app-release-unsigned.apk
+```
+
 ## Derleme ve test
 
 ```bash
@@ -30,4 +39,5 @@ Ayarlar > Geliştirici (yalnızca debug): **deneme modu** (karta dokunmak telefo
 
 - Tasarım kararları: [DESIGN.md](DESIGN.md). Görsel kaynakları ve lisans notları: [assets-src/SOURCES.md](assets-src/SOURCES.md).
 - Sessiz ödeme geçişi için [Shizuku](https://shizuku.rikka.app) gerekir; yoksa Android'in sistem seçicisi açılır.
-- Bankaların tanıtım görselleri ve kart ağı işaretleri üçüncü tarafların markalarıdır; uygulama yayınlanacaksa izinleri gözden geçirilmeli.
+- Hazır kart görselleri şimdilik yok (`CardCatalog` boş). Eklemek için `app/src/main/assets/card_faces/<id>.webp` koyup `CardImages.kt` içindeki listeye satır ekle; üzerinde ad veya numara olmamalı.
+- Kart ağı işaretleri üçüncü tarafların markalarıdır; yayınlarken izinleri gözden geçir.
