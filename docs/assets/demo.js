@@ -15,10 +15,10 @@
 
   // Sahne düzenleri (sahne koordinatları). Dar ekranda cihazlar üstte, telefon altta;
   // durum yazıları sahnenin dışına taşınır ki küçülmesin. minX: soldaki Çevir tuşu sahnede kalsın.
-  // Dar ekranda cihazlar dikey sıralanır: barkod okuyucu üstte, POS ortada, telefon altta.
+  // Dar ekranda cihazlar dikey sıralanır: barkod okuyucu üstte, telefon ortada, POS altta.
   const LAYOUTS = {
     wide: { w: 1100, h: 700, scanner: [24, 120, 1], pos: [846, 150, 1], phone: [575, 330], minX: 205, minY: 150, maxY: 580 },
-    narrow: { w: 360, h: 1340, scanner: [89, 20, 0.7], pos: [103, 340, 0.7], phone: [180, 900], minX: 128, minY: 150, maxY: 1000 },
+    narrow: { w: 360, h: 1260, scanner: [89, 20, 0.7], pos: [103, 930, 0.7], phone: [180, 630], minX: 128, minY: 150, maxY: 1000 },
   };
   const PHONE_W = 250, PHONE_H = 520;
   const STACK_TOP = 82, STRIP = 44, COLLAPSED_TOP = 448;
