@@ -30,6 +30,10 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -123,6 +127,7 @@ private class StackState(selected: String?) {
     var sel by mutableFloatStateOf(if (selected != null) 1f else 0f)
     var anchor by mutableStateOf(selected)
     var pulling by mutableStateOf(false)
+    var flipped by mutableStateOf(false)
     var pullTotal = 0f
     var pullDist = 1f
     var handoff = 0f
@@ -332,6 +337,7 @@ private fun Stage(
         val detailTop = topPad + cardH + with(density) { 22.dp.toPx() }
         val detailHeight = with(density) { (bottomBase - detailTop - 14.dp.toPx()).coerceAtLeast(160.dp.toPx()).toDp() }
 
+        LaunchedEffect(selectedId) { st.flipped = false }
         LaunchedEffect(order) { st.forget(order.toSet()) }
         LaunchedEffect(maxScroll) { if (st.dragId == null && st.scroll > maxScroll) st.scroll = maxScroll }
         // Sürükleme bırakıldıktan sonra kartlar yeni sıraya oturunca canlı sırayı bırak
@@ -490,13 +496,14 @@ private fun Stage(
                         return collapsed + (target - collapsed) * p
                     }
 
-                    val tapLabel = if (selectedId == null) "Kartı aç" else if (isSel) null else "Kartları göster"
+                    val tapLabel = if (selectedId == null) "Kartı aç" else if (isSel) "Kartı çevir" else "Kartları göster"
                     // Sürüklerken kaldırılan kart: ölçek ve gölge yumuşakça artar, bırakınca yumuşakça iner
                     val lift by animateFloatAsState(if (isDragged) 1f else 0f, spring(dampingRatio = 0.75f, stiffness = 260f), label = "lift")
                     val raised = isAnchor || isDragged || lift > 0.02f
                     val press = remember { MutableInteractionSource() }
                     val pressed by press.collectIsPressedAsState()
                     val pressScale by animateFloatAsState(if (pressed && st.dragId == null) 0.985f else 1f, spring(stiffness = 900f), label = "press")
+                    val flipAngle by animateFloatAsState(if (isSel && st.flipped) 180f else 0f, spring(dampingRatio = 0.85f, stiffness = 170f), label = "flip")
                     val pullUp = false // yukarı çekmek ödemeye geçmez: yalnızca dokunmak açar, sürüklemek sıralar
                     val pullDown = false
 
@@ -512,6 +519,7 @@ private fun Stage(
                                 scaleX = s; scaleY = s
                                 alpha = if (!isAnchor && p > 0f && visibleJ < 0) (1f - min(p, 1f)) else 1f
                                 transformOrigin = TransformOrigin(0.5f, 0f)
+                                if (isAnchor) { rotationY = flipAngle; cameraDistance = 14f * this.density }
                             }
                             .semantics {
                                 customActions = listOf(
@@ -531,7 +539,7 @@ private fun Stage(
                                 onClickLabel = tapLabel,
                             ) {
                                 haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                if (selectedId == null) { if (st.sel < 0.02f) onSelect(card.id) } else onSelect(null)
+                                if (selectedId == null) { if (st.sel < 0.02f) onSelect(card.id) } else if (isSel) st.flipped = !st.flipped else onSelect(null)
                             }
                             .draggable(
                                 orientation = Orientation.Vertical,
@@ -569,7 +577,9 @@ private fun Stage(
                                 }
                             }
                     ) {
-                        CardSurface(
+                        if (isAnchor && flipAngle > 90f) {
+                            CardBack(card, onEdit = { onEdit(card) }, modifier = Modifier.graphicsLayer { rotationY = 180f })
+                        } else CardSurface(
                             card,
                             isDefault = card.id in env.defaultIds,
                             elevation = if (isAnchor) 14.dp else 6.dp + 16.dp * lift,
@@ -655,5 +665,31 @@ private fun EmptyWallet(onAdd: () -> Unit) {
         Spacer(Modifier.height(28.dp))
         PrimaryButton("Kart ekle", onAdd, Modifier.fillMaxWidth())
         Spacer(Modifier.weight(1f))
+    }
+}
+
+
+/** Kartın arkası: düzenleme buradan, sağ üstteki ayar simgesiyle açılır. */
+@Composable
+private fun CardBack(card: WaultCard, onEdit: () -> Unit, modifier: Modifier = Modifier) {
+    val art = app.wault.design.rememberCardArt(card)
+    Box(modifier) {
+        CardSurface(card, elevation = 14.dp, showFace = false)
+        Column(Modifier.matchParentSize().padding(20.dp)) {
+            Row(verticalAlignment = Alignment.Top) {
+                Column(Modifier.weight(1f)) {
+                    Text(card.title, style = WaultType.bodyMedium, color = art.ink, maxLines = 1)
+                    Text("Kart ayarları", style = WaultType.footnote, color = art.inkSoft)
+                }
+                Box(
+                    Modifier.size(44.dp).clip(CircleShape).background(art.ink.copy(alpha = 0.16f))
+                        .clickable(role = Role.Button, onClickLabel = "Kartı düzenle", onClick = onEdit),
+                    contentAlignment = Alignment.Center,
+                ) { app.wault.design.GlyphIcon(app.wault.design.Glyph.SLIDERS, art.ink, size = 22.dp) }
+            }
+            Spacer(Modifier.weight(1f))
+            Text("Düzenlemek için sağ üstteki ayar simgesine dokun. Kartı öne çevirmek için karta dokun.",
+                style = WaultType.footnote, color = art.inkSoft)
+        }
     }
 }

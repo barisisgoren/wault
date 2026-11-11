@@ -6,6 +6,17 @@ import app.wault.ui.common.QuickColors
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -76,17 +87,9 @@ fun CardDetail(activity: MainActivity, card: WaultCard, env: Environment, onEdit
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         when (card.kind) {
             CardKind.PAYMENT -> PaymentDetail(activity, card, env, tint, onEdit)
-            CardKind.SHOWCASE -> ShowcaseDetail(activity, env, onEdit)
+            CardKind.SHOWCASE -> ShowcaseDetail(activity, env, tint, onEdit)
             CardKind.LOYALTY, CardKind.CODE -> CodeDetail(activity, card, onEdit)
             CardKind.NFC_COPY -> NfcDetail(activity, card, env, tint, onEdit)
-        }
-        Spacer(Modifier.height(20.dp))
-        var sheet by remember { mutableStateOf(false) }
-        Group(header = "Renk") {
-            QuickColors(card, onChange, onCustom = { sheet = true })
-        }
-        if (sheet) {
-            ColorSheet(current = rememberCardArt(card).base, onPick = { onChange(card.withCustomColor(it)) }, onDone = { sheet = false })
         }
         Spacer(Modifier.height(24.dp))
     }
@@ -151,80 +154,94 @@ private fun PaymentDetail(activity: MainActivity, card: WaultCard, env: Environm
                 "Ödeme onayını göster", subtitle = "Bildirim erişimi gerekli",
                 titleColor = c.accent, onClick = { PaymentNotificationListener.openAccessSettings(activity) },
             )
-            Separator()
         }
-        GroupRow("Kartı düzenle", chevron = true, onClick = onEdit)
     }
 }
 
-@Composable
-private fun ShowcaseDetail(activity: MainActivity, env: Environment, onEdit: () -> Unit) {
-    val prefs by activity.app.container.prefs.state.collectAsState()
-    val scope = rememberCoroutineScope()
-    val haptics = LocalHapticFeedback.current
-    val ready = env.shizuku == ShizukuBridge.State.READY
-    val paymentOff = ready && prefs.showcaseTurnsOffPayment
+private enum class LarpStage { WAIT, AMOUNT, PAYING, PAID }
 
-    // Rol oyunu (LARP) gösterimi: vitrin kartı açıkken telefon okuyucu modunda bekler; bir NFC etiketine ya da karta
-    // değince ekranda "Ödendi" çıkar. Okuyucu modunda telefon kart taklidi yapmaz, yani gerçek bir okuyucuya hiçbir şey sunmaz.
-    var paidAt by remember { mutableLongStateOf(0L) }
-    var paid by remember { mutableStateOf(false) }
+/**
+ * Rol oyunu (sahte kart): önce okuyucuya/etikete değdirilir, sonra tutar girilir, ödeme animasyonu oynar, "Ödendi" çıkar.
+ * Okuyucu modunda telefon kart taklidi yapmaz; gerçek bir ödeme terminaline hiçbir şey sunulmaz.
+ */
+@Composable
+private fun ShowcaseDetail(activity: MainActivity, env: Environment, tint: Color, onEdit: () -> Unit) {
+    val haptics = LocalHapticFeedback.current
+    var stage by remember { mutableStateOf(LarpStage.WAIT) }
     var amount by rememberSaveable { mutableStateOf("") }
+    val stageNow by rememberUpdatedState(stage)
     DisposableEffect(Unit) {
-        if (activity.nfc.available) activity.nfc.startReading { _ -> paidAt = System.nanoTime(); paid = true }
+        if (activity.nfc.available) activity.nfc.startReading { _ -> if (stageNow == LarpStage.WAIT) stage = LarpStage.AMOUNT }
         onDispose { activity.nfc.stopReading() }
     }
-    LaunchedEffect(paidAt) {
-        if (paid) {
-            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-            delay(3200)
-            paid = false
-        }
-    }
-    if (paid) {
-        PaidPanel(amount)
-    } else if (activity.nfc.enabled) {
-        Status("Rol oyunu modu", "Tutarı yaz, telefonu bir NFC etiketine ya da karta değdir: ekranda \"Ödendi\" görünür.")
-        Spacer(Modifier.height(16.dp))
-        Group {
-            FieldRow("Ödenecek tutar", amount, { amount = it.filter { ch -> ch.isDigit() || ch == ',' || ch == '.' }.take(12) },
-                placeholder = "₺ 0,00", keyboard = KeyboardType.Decimal)
-        }
-    } else if (paymentOff) {
-        Status("Ödeme kapalı", "Bu kart seçiliyken telefon okuyucuya hiçbir ödeme uygulaması sunmuyor. Başka bir ödeme kartı seçince ödeme yeniden açılır.")
-    } else {
-        Status("Vitrin kartı", "Bu kart bir ödeme yöntemine bağlı değil. Okuyucuya yaklaştırınca ödeme yapmaz. NFC açılırsa rol oyunu modu çalışır.")
-    }
-    if (paymentOff && !paid) {
-        Spacer(Modifier.height(16.dp))
-        TintedButton("Ödemeyi geri aç", {
-            scope.launch {
-                val pkg = prefs.lastWalletPackage.ifBlank { null }
-                    ?: activity.app.container.store.cards.value.firstNotNullOfOrNull { it.payment?.packageName }
-                if (pkg != null && ShizukuBridge.setWalletHolder(pkg)) activity.resumeTick.intValue++
+    val progress = remember { Animatable(0f) }
+    val check = remember { Animatable(0f) }
+    LaunchedEffect(stage) {
+        when (stage) {
+            LarpStage.AMOUNT -> { haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove) }
+            LarpStage.PAYING -> {
+                progress.snapTo(0f); check.snapTo(0f)
+                progress.animateTo(1f, tween(1100, easing = FastOutSlowInEasing))
+                stage = LarpStage.PAID
             }
-        }, Modifier.fillMaxWidth())
+            LarpStage.PAID -> {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                check.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = 380f))
+                delay(3500)
+                amount = ""
+                stage = LarpStage.WAIT
+            }
+            LarpStage.WAIT -> Unit
+        }
     }
-    Spacer(Modifier.height(24.dp))
-    Group { GroupRow("Kartı düzenle", chevron = true, onClick = onEdit) }
+    when (stage) {
+        LarpStage.WAIT -> when {
+            !env.nfcAvailable -> Status("Bu cihazda NFC yok", null)
+            !env.nfcEnabled -> {
+                Status("NFC kapalı", "Telefonu okutmak için NFC'yi aç.")
+                Spacer(Modifier.height(16.dp))
+                PrimaryButton("NFC'yi aç", { PaymentSwitcher.openNfcSettings(activity) }, Modifier.fillMaxWidth())
+            }
+            else -> Status("Telefonu okuyucuya yaklaştır", "Okutunca ödenecek tutarı girersin") { ReadyPulse(tint = tint) }
+        }
+        LarpStage.AMOUNT -> {
+            Status("Okundu", "Ödenecek tutarı gir")
+            Spacer(Modifier.height(16.dp))
+            Group {
+                FieldRow("Tutar", amount, { amount = it.filter { ch -> ch.isDigit() || ch == ',' || ch == '.' }.take(12) },
+                    placeholder = "₺ 0,00", keyboard = KeyboardType.Decimal)
+            }
+            Spacer(Modifier.height(16.dp))
+            PrimaryButton("Öde", { if (amount.isNotBlank()) stage = LarpStage.PAYING }, Modifier.fillMaxWidth())
+        }
+        LarpStage.PAYING, LarpStage.PAID -> PayAnimation(amount, progress.value, check.value, stage == LarpStage.PAID)
+    }
 }
 
-/** Apple Pay tarzı onay: yeşil daire, işaret, "Ödendi". Etiket, bunun bir oyun gösterimi olduğunu açıkça söyler. */
+/** Halka dolar, işaret yaylanarak belirir; yeşil onay, "Ödendi" ve tutar. */
 @Composable
-private fun PaidPanel(amount: String) {
+private fun PayAnimation(amount: String, progress: Float, check: Float, done: Boolean) {
     val c = Wault.colors
+    val green = Color(0xFF30B158)
     Column(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(84.dp).clip(CircleShape).background(Color(0xFF30B158)), contentAlignment = Alignment.Center) {
-            GlyphIcon(Glyph.CHECK, Color.White, size = 40.dp)
+        Box(Modifier.size(96.dp), contentAlignment = Alignment.Center) {
+            Canvas(Modifier.fillMaxSize()) {
+                val w = 5.dp.toPx()
+                drawCircle(c.secondary.copy(alpha = 0.18f), radius = (size.minDimension - w) / 2, style = Stroke(w))
+                if (!done) drawArc(green, -90f, 360f * progress, false, topLeft = Offset(w / 2, w / 2),
+                    size = Size(size.width - w, size.height - w), style = Stroke(w, cap = StrokeCap.Round))
+            }
+            if (done) {
+                Box(Modifier.size(96.dp).graphicsLayer { scaleX = check; scaleY = check }.clip(CircleShape).background(green),
+                    contentAlignment = Alignment.Center) { GlyphIcon(Glyph.CHECK, Color.White, size = 44.dp) }
+            }
         }
-        Spacer(Modifier.height(14.dp))
-        Text("Ödendi", style = WaultType.title, color = c.label)
+        Spacer(Modifier.height(16.dp))
+        Text(if (done) "Ödendi" else "Ödeniyor…", style = WaultType.title, color = c.label)
         if (amount.isNotBlank()) {
             Spacer(Modifier.height(2.dp))
             Text("₺ " + amount.replace('.', ','), style = WaultType.title, color = c.label)
         }
-        Spacer(Modifier.height(6.dp))
-        Text("Rol oyunu", style = WaultType.footnote, color = c.secondary, textAlign = TextAlign.Center)
     }
 }
 
@@ -258,11 +275,16 @@ private fun CodeDetail(activity: MainActivity, card: WaultCard, onEdit: () -> Un
         Status("Bu kartta kod yok", "Kartı düzenleyip barkodunu tarayabilirsin.")
         Spacer(Modifier.height(24.dp))
     }
-    Group {
-        if (card.memberNo.isNotBlank()) { GroupRow("Üye numarası", value = card.memberNo); Separator() }
-        if (card.points.isNotBlank()) { GroupRow("Puan", value = card.points); Separator() }
-        if (card.note.isNotBlank()) { GroupRow("Not", subtitle = card.note); Separator() }
-        GroupRow("Kartı düzenle", chevron = true, onClick = onEdit)
+    val rows = buildList<Triple<String, String?, String?>> {
+        if (card.memberNo.isNotBlank()) add(Triple("Üye numarası", card.memberNo, null))
+        if (card.points.isNotBlank()) add(Triple("Puan", card.points, null))
+        if (card.note.isNotBlank()) add(Triple("Not", null, card.note))
+    }
+    if (rows.isNotEmpty()) Group {
+        rows.forEachIndexed { i, (label, value, sub) ->
+            if (i > 0) Separator()
+            if (value != null) GroupRow(label, value = value) else GroupRow(label, subtitle = sub)
+        }
     }
 }
 
@@ -317,12 +339,10 @@ private fun NfcDetail(activity: MainActivity, card: WaultCard, env: Environment,
         GroupRow("Tür", value = TagAnalyzer.techLabel(nfc.techs))
         Separator()
         GroupRow("Kart kimliği", value = nfc.uidHex.chunked(2).joinToString(" "))
-        Separator()
         if (emulates && env.nfcAvailable) {
+            Separator()
             GroupRow(if (writing) "Yazmayı durdur" else "Boş etikete yaz", titleColor = c.accent,
                 onClick = { result = null; writing = !writing })
-            Separator()
         }
-        GroupRow("Kartı düzenle", chevron = true, onClick = onEdit)
     }
 }

@@ -98,14 +98,15 @@ class AppFlowTest {
         rule.onNodeWithContentDescription("Kart ekle").assertExists()
     }
 
-    @Test fun quickColourRowRecoloursTheOpenCardAndSavesIt() {
+    @Test fun tappingTheOpenCardFlipsItAndTheGearOpensTheEditor() {
         rule.waitForText("Migros")
         rule.tapStrip("Migros")
         rule.waitForText("Üye numarası")
-        rule.onNode(hasContentDescription("Grafit")).performScrollTo().performClick()
-        rule.waitUntil(5_000) { store.byId("demo-migros")?.artId == "graphite" }
-        assertEquals("graphite", store.byId("demo-migros")?.artId)
-        rule.onRoot().captureRoboImage(Shots.path("flow_detail_recolored"))
+        // Açık kartın arkasında düzenleme yok; kart çevrilince sağ üstte ayar düğmesi çıkar
+        assertEquals(0, rule.onAllNodes(hasText("Kartı düzenle")).fetchSemanticsNodes().size)
+        rule.onNodeWithText("Migros").performClick()
+        rule.waitForText("Kart ayarları")
+        rule.onRoot().captureRoboImage(Shots.path("flow_card_back"))
     }
 
     @Test fun settingsLetThePersonPickStyleThemeAndAccent() {
