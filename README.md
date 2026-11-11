@@ -55,3 +55,7 @@ adb shell am start -n app.wault/.MainActivity --ez dry_run true --ez demo true -
 - There are no built-in card face images yet (`CardCatalog` is empty). To add one, put `app/src/main/assets/card_faces/<id>.webp` in place and add a line to the list in `CardImages.kt`. The image must not contain a name or a card number.
 - Card network logos (Visa, Mastercard, American Express, Troy) are trademarks of their owners. Check their brand rules before you publish a build.
 - The app interface is currently in Turkish.
+
+## License
+
+The code is released under the [MIT License](LICENSE), Copyright (c) 2026 Behlül Barış İşgören. Third-party libraries, the font and the card network logos keep their own terms: see [THIRD_PARTY.md](THIRD_PARTY.md).

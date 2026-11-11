@@ -55,3 +55,7 @@ adb shell am start -n app.wault/.MainActivity --ez dry_run true --ez demo true -
 - Hazır kart görselleri şimdilik yok (`CardCatalog` boş). Eklemek için `app/src/main/assets/card_faces/<id>.webp` koyup `CardImages.kt` içindeki listeye satır ekle; üzerinde ad veya numara olmamalı.
 - Kart ağı logoları (Visa, Mastercard, American Express, Troy) sahiplerinin markalarıdır; yayınlarken izinleri gözden geçir.
 - Uygulama arayüzü şimdilik Türkçe.
+
+## Lisans
+
+Kod [MIT Lisansı](LICENSE) ile yayınlanır, Telif (c) 2026 Behlül Barış İşgören. Üçüncü taraf kütüphaneler, yazı tipi ve kart ağı logoları kendi koşullarında kalır: bkz. [THIRD_PARTY.md](THIRD_PARTY.md).
