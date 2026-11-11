@@ -61,6 +61,9 @@ data class WaultCard(
     val last4: String = "",
     val holder: String = "",
     val expiry: String = "",
+    /** Kart numarası ve güvenlik kodu yalnızca şifreli kasada durur; görmek için parmak izi/PIN gerekir. */
+    val pan: String = "",
+    val cvv: String = "",
     val payment: PaymentLink? = null,
     // sadakat ve kod
     val memberNo: String = "",

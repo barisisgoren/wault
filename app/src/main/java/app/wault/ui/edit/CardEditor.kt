@@ -137,7 +137,7 @@ fun CardEditor(
                         tried && draft.title.isBlank() -> "Kart adını yaz; kart cüzdanda bu adla görünür."
                         tried && !last4Ok -> "Son dört hane 4 rakam olmalı."
                         draft.kind == CardKind.SHOWCASE -> "Vitrin kartı sadece görünüştür; okuyucuya yaklaştırınca ödeme yapmaz."
-                        draft.kind == CardKind.PAYMENT -> "Wault kart numarası, güvenlik kodu ya da ödeme anahtarı saklamaz."
+                        draft.kind == CardKind.PAYMENT -> "Kart numarası ve güvenlik kodu isteğe bağlıdır; telefonda şifreli saklanır, görmek için parmak izi ya da PIN gerekir."
                         else -> null
                     },
                 ) {
@@ -148,6 +148,14 @@ fun CardEditor(
                     FieldRow("Alt satır", draft.subtitle, { draft = draft.copy(subtitle = it) }, placeholder = "İsteğe bağlı")
                     when (draft.kind) {
                         CardKind.PAYMENT, CardKind.SHOWCASE -> {
+                            Separator()
+                            FieldRow("Kart numarası", groupDigits(draft.pan), { s ->
+                                val d = s.filter(Char::isDigit).take(19)
+                                draft = draft.copy(pan = d, last4 = if (d.length >= 4) d.takeLast(4) else draft.last4)
+                            }, placeholder = "İsteğe bağlı", keyboard = KeyboardType.NumberPassword)
+                            Separator()
+                            FieldRow("Güvenlik kodu", draft.cvv, { s -> draft = draft.copy(cvv = s.filter(Char::isDigit).take(4)) },
+                                placeholder = "CVV, isteğe bağlı", keyboard = KeyboardType.NumberPassword)
                             Separator()
                             FieldRow("Son dört hane", draft.last4, { s -> draft = draft.copy(last4 = s.filter(Char::isDigit).take(4)) },
                                 placeholder = "4417", keyboard = KeyboardType.NumberPassword, error = tried && !last4Ok)
@@ -345,6 +353,8 @@ internal fun guessFormat(value: String): CodeFormat = when {
     value.length <= 24 && value.all { it.code in 32..126 } && canEncode(value, CodeFormat.CODE_128) -> CodeFormat.CODE_128
     else -> CodeFormat.QR
 }
+
+internal fun groupDigits(d: String): String = d.chunked(4).joinToString(" ")
 
 private fun formatExpiry(input: String): String {
     val d = input.filter { it.isDigit() }.take(4)

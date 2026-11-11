@@ -34,6 +34,8 @@ object CardCodec {
         put("last4", c.last4)
         put("holder", c.holder)
         put("expiry", c.expiry)
+        if (c.pan.isNotEmpty()) put("pan", c.pan)
+        if (c.cvv.isNotEmpty()) put("cvv", c.cvv)
         c.payment?.let {
             put("payment", JSONObject().apply {
                 put("pkg", it.packageName)
@@ -89,6 +91,8 @@ object CardCodec {
             last4 = o.optString("last4"),
             holder = o.optString("holder"),
             expiry = o.optString("expiry"),
+            pan = o.optString("pan"),
+            cvv = o.optString("cvv"),
             payment = pay?.let { PaymentLink(it.getString("pkg"), it.getString("cls"), it.optString("label")) },
             memberNo = o.optString("memberNo"),
             points = o.optString("points"),

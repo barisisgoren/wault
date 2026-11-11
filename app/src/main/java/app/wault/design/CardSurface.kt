@@ -96,6 +96,8 @@ fun CardSurface(
     elevation: Dp = 8.dp,
     /** false: sadece kartın kendisi (alt yığındaki kenarlar için yazısız). */
     showFace: Boolean = true,
+    /** true: kart numarası tam görünür (kimlik doğrulamadan sonra). */
+    revealed: Boolean = false,
 ) {
     val context = LocalContext.current
     val shape = RoundedCornerShape(CardCorner)
@@ -190,12 +192,12 @@ fun CardSurface(
             }
             .padding(CardPadding)
     ) {
-        if (showFace) CardFace(card, art, isDefault)
+        if (showFace) CardFace(card, art, isDefault, revealed)
     }
 }
 
 @Composable
-private fun CardFace(card: WaultCard, art: CardArt, isDefault: Boolean) {
+private fun CardFace(card: WaultCard, art: CardArt, isDefault: Boolean, revealed: Boolean = false) {
     Column(Modifier.fillMaxSize()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             MarkTile(card, art)
@@ -218,7 +220,7 @@ private fun CardFace(card: WaultCard, art: CardArt, isDefault: Boolean) {
         Spacer(Modifier.weight(1f))
         Row(verticalAlignment = Alignment.Bottom) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                BottomLines(card, art)
+                BottomLines(card, art, revealed)
             }
             Spacer(Modifier.width(12.dp))
             NetworkBadge(card.network, art)
@@ -270,7 +272,7 @@ private fun TopMark(card: WaultCard, art: CardArt, isDefault: Boolean) {
 }
 
 @Composable
-private fun BottomLines(card: WaultCard, art: CardArt) {
+private fun BottomLines(card: WaultCard, art: CardArt, revealed: Boolean = false) {
     when (card.kind) {
         CardKind.PAYMENT, CardKind.SHOWCASE -> {
             if (card.holder.isNotBlank() || card.expiry.isNotBlank()) {
@@ -279,7 +281,9 @@ private fun BottomLines(card: WaultCard, art: CardArt) {
                     style = WaultType.caption, color = art.inkSoft, maxLines = 1,
                 )
             }
-            if (card.last4.isNotBlank()) {
+            if (revealed && card.pan.isNotBlank()) {
+                Text(card.pan.chunked(4).joinToString(" "), style = WaultType.cardNumber.copy(fontSize = 21.sp), color = art.ink, maxLines = 1, softWrap = false)
+            } else if (card.last4.isNotBlank()) {
                 Text("•••• ${card.last4}", style = WaultType.cardNumber, color = art.ink)
             } else if (card.kind == CardKind.PAYMENT) {
                 Text(

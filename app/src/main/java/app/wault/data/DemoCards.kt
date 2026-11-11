@@ -12,6 +12,7 @@ object DemoCards {
     ) = WaultCard(
         id = "demo-$pkg", kind = CardKind.PAYMENT, title = title, subtitle = subtitle, artId = art,
         network = net, last4 = last4, holder = holder, expiry = expiry,
+        pan = "400000000000" + last4, cvv = "123",
         payment = PaymentLink(pkg, cls, app),
     )
 

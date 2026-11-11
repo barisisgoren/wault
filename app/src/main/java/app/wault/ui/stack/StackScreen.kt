@@ -32,6 +32,10 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.unit.sp
+import app.wault.security.BiometricGate
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Spacer
@@ -128,6 +132,7 @@ private class StackState(selected: String?) {
     var anchor by mutableStateOf(selected)
     var pulling by mutableStateOf(false)
     var flipped by mutableStateOf(false)
+    var revealed by mutableStateOf(false)
     var pullTotal = 0f
     var pullDist = 1f
     var handoff = 0f
@@ -335,9 +340,16 @@ private fun Stage(
         val step = with(density) { PeekStep.toPx() }
         val bottomBase = viewportH - navInset - with(density) { 4.dp.toPx() } - sliver - step * (peeks - 1).coerceAtLeast(0)
         val detailTop = topPad + cardH + with(density) { 22.dp.toPx() }
-        val detailHeight = with(density) { (bottomBase - detailTop - 14.dp.toPx()).coerceAtLeast(160.dp.toPx()).toDp() }
+        val detailHeight = with(density) { (viewportH - navInset - detailTop - 12.dp.toPx()).coerceAtLeast(160.dp.toPx()).toDp() }
 
-        LaunchedEffect(selectedId) { st.flipped = false }
+        LaunchedEffect(selectedId) { st.flipped = false; st.revealed = false }
+        // Kart bilgileri bir süre sonra kendiliğinden gizlenir
+        LaunchedEffect(st.revealed) { if (st.revealed) { kotlinx.coroutines.delay(30_000); st.revealed = false } }
+        // Ödeme adımında ekran açık kalır
+        DisposableEffect(selectedId) {
+            if (selectedId != null) activity.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            onDispose { activity.window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
+        }
         LaunchedEffect(order) { st.forget(order.toSet()) }
         LaunchedEffect(maxScroll) { if (st.dragId == null && st.scroll > maxScroll) st.scroll = maxScroll }
         // Sürükleme bırakıldıktan sonra kartlar yeni sıraya oturunca canlı sırayı bırak
@@ -517,7 +529,7 @@ private fun Stage(
                                 val target = if (isAnchor) 1f else 0.95f
                                 val s = (1f + (target - 1f) * p) * (1f + 0.035f * lift) * pressScale
                                 scaleX = s; scaleY = s
-                                alpha = if (!isAnchor && p > 0f && visibleJ < 0) (1f - min(p, 1f)) else 1f
+                                alpha = if (!isAnchor && p > 0f) (1f - min(p * 1.6f, 1f)) else 1f
                                 transformOrigin = TransformOrigin(0.5f, 0f)
                                 if (isAnchor) { rotationY = flipAngle; cameraDistance = 14f * this.density }
                             }
@@ -578,13 +590,23 @@ private fun Stage(
                             }
                     ) {
                         if (isAnchor && flipAngle > 90f) {
-                            CardBack(card, onEdit = { onEdit(card) }, modifier = Modifier.graphicsLayer { rotationY = 180f })
+                            CardBack(
+                                card, revealed = st.revealed,
+                                onEdit = { onEdit(card) },
+                                onReveal = {
+                                    if (!BiometricGate.available(activity, strong = true)) { /* ekran kilidi yoksa bilgiler gösterilmez */ }
+                                    else BiometricGate.prompt(activity, "Kart bilgilerini göster", onSuccess = { st.revealed = true }, strong = true)
+                                },
+                                onHide = { st.revealed = false },
+                                modifier = Modifier.graphicsLayer { rotationY = 180f },
+                            )
                         } else CardSurface(
                             card,
                             isDefault = card.id in env.defaultIds,
                             elevation = if (isAnchor) 14.dp else 6.dp + 16.dp * lift,
                             // alttaki yığında sadece kartların kenarları görünsün
                             showFace = (selectedId == null && collapsedAtRest) || isAnchor || isDragged,
+                            revealed = isAnchor && st.revealed,
                         )
                     }
                 }
@@ -669,10 +691,14 @@ private fun EmptyWallet(onAdd: () -> Unit) {
 }
 
 
-/** Kartın arkası: düzenleme buradan, sağ üstteki ayar simgesiyle açılır. */
+/** Kartın arkası: sağ üstte ayar simgesi (düzenleme), altta kart bilgilerini gösteren düğme; CVV burada görünür. */
 @Composable
-private fun CardBack(card: WaultCard, onEdit: () -> Unit, modifier: Modifier = Modifier) {
+private fun CardBack(
+    card: WaultCard, revealed: Boolean, onEdit: () -> Unit, onReveal: () -> Unit, onHide: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val art = app.wault.design.rememberCardArt(card)
+    val hasInfo = card.pan.isNotBlank() || card.cvv.isNotBlank()
     Box(modifier) {
         CardSurface(card, elevation = 14.dp, showFace = false)
         Column(Modifier.matchParentSize().padding(20.dp)) {
@@ -688,8 +714,25 @@ private fun CardBack(card: WaultCard, onEdit: () -> Unit, modifier: Modifier = M
                 ) { app.wault.design.GlyphIcon(app.wault.design.Glyph.SLIDERS, art.ink, size = 22.dp) }
             }
             Spacer(Modifier.weight(1f))
-            Text("Düzenlemek için sağ üstteki ayar simgesine dokun. Kartı öne çevirmek için karta dokun.",
-                style = WaultType.footnote, color = art.inkSoft)
+            if (revealed && card.cvv.isNotBlank()) {
+                Text("CVV", style = WaultType.caption, color = art.inkSoft)
+                Text(card.cvv, style = WaultType.cardNumber.copy(fontSize = 26.sp), color = art.ink)
+                Spacer(Modifier.height(12.dp))
+            }
+            if (hasInfo) {
+                Row(
+                    Modifier.clip(CircleShape).background(art.ink.copy(alpha = 0.16f))
+                        .clickable(role = Role.Button, onClick = if (revealed) onHide else onReveal)
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    app.wault.design.GlyphIcon(app.wault.design.Glyph.LOCK, art.ink, size = 16.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (revealed) "Bilgileri gizle" else "Kart bilgilerini göster", style = WaultType.subheadMedium, color = art.ink)
+                }
+            } else {
+                Text("Kart numarası ve güvenlik kodunu eklemek için ayar simgesine dokun.", style = WaultType.footnote, color = art.inkSoft)
+            }
         }
     }
 }

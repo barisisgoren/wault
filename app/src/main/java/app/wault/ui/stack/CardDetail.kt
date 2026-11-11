@@ -86,7 +86,7 @@ fun CardDetail(activity: MainActivity, card: WaultCard, env: Environment, onEdit
     val tint = rememberCardArt(card).accentOn(Wault.colors.isDark)
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         when (card.kind) {
-            CardKind.PAYMENT -> PaymentDetail(activity, card, env, tint, onEdit)
+            CardKind.PAYMENT -> { Spacer(Modifier.height(72.dp)); PaymentDetail(activity, card, env, tint, onEdit) }
             CardKind.SHOWCASE -> ShowcaseDetail(activity, env, tint, onEdit)
             CardKind.LOYALTY, CardKind.CODE -> CodeDetail(activity, card, onEdit)
             CardKind.NFC_COPY -> NfcDetail(activity, card, env, tint, onEdit)
@@ -128,7 +128,7 @@ private fun PaymentDetail(activity: MainActivity, card: WaultCard, env: Environm
             Spacer(Modifier.height(16.dp))
             PrimaryButton("NFC'yi aç", { PaymentSwitcher.openNfcSettings(activity) }, Modifier.fillMaxWidth())
         }
-        isDefault -> Status("Telefonu okuyucuya yaklaştır", "${link.appLabel} ile ödenir") { ReadyPulse(tint = tint) }
+        isDefault -> Status("Telefonu okuyucuya yaklaştır", null) { ReadyPulse(tint = tint) }
         else -> {
             Status("Bu kart varsayılan değil", "Android, ödeme uygulamasını değiştirmek için senden onay ister.")
             Spacer(Modifier.height(16.dp))
@@ -140,16 +140,8 @@ private fun PaymentDetail(activity: MainActivity, card: WaultCard, env: Environm
         }
     }
     Spacer(Modifier.height(24.dp))
-    Group {
-        if (link != null) {
-            GroupRow(
-                link.appLabel, subtitle = "Ödeme uygulaması",
-                leading = { AppIcon(link.packageName, 34.dp) },
-                chevron = true, onClick = { PaymentSwitcher.openPaymentSettings(activity) },
-            )
-            Separator(64.dp)
-        }
-        if (link != null && !env.notificationAccess) {
+    if (link != null && !env.notificationAccess) {
+        Group {
             GroupRow(
                 "Ödeme onayını göster", subtitle = "Bildirim erişimi gerekli",
                 titleColor = c.accent, onClick = { PaymentNotificationListener.openAccessSettings(activity) },
