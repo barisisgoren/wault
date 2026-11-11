@@ -11,6 +11,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.text.input.KeyboardType
+import app.wault.design.FieldRow
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import kotlinx.coroutines.delay
@@ -166,6 +169,7 @@ private fun ShowcaseDetail(activity: MainActivity, env: Environment, onEdit: () 
     // değince ekranda "Ödendi" çıkar. Okuyucu modunda telefon kart taklidi yapmaz, yani gerçek bir okuyucuya hiçbir şey sunmaz.
     var paidAt by remember { mutableLongStateOf(0L) }
     var paid by remember { mutableStateOf(false) }
+    var amount by rememberSaveable { mutableStateOf("") }
     DisposableEffect(Unit) {
         if (activity.nfc.available) activity.nfc.startReading { _ -> paidAt = System.nanoTime(); paid = true }
         onDispose { activity.nfc.stopReading() }
@@ -178,9 +182,14 @@ private fun ShowcaseDetail(activity: MainActivity, env: Environment, onEdit: () 
         }
     }
     if (paid) {
-        PaidPanel()
+        PaidPanel(amount)
     } else if (activity.nfc.enabled) {
-        Status("Rol oyunu modu", "Telefonu bir NFC etiketine ya da karta değdir, ekranda \"Ödendi\" görünür. Gerçek ödeme yapılmaz.")
+        Status("Rol oyunu modu", "Tutarı yaz, telefonu bir NFC etiketine ya da karta değdir: ekranda \"Ödendi\" görünür.")
+        Spacer(Modifier.height(16.dp))
+        Group {
+            FieldRow("Ödenecek tutar", amount, { amount = it.filter { ch -> ch.isDigit() || ch == ',' || ch == '.' }.take(12) },
+                placeholder = "₺ 0,00", keyboard = KeyboardType.Decimal)
+        }
     } else if (paymentOff) {
         Status("Ödeme kapalı", "Bu kart seçiliyken telefon okuyucuya hiçbir ödeme uygulaması sunmuyor. Başka bir ödeme kartı seçince ödeme yeniden açılır.")
     } else {
@@ -202,7 +211,7 @@ private fun ShowcaseDetail(activity: MainActivity, env: Environment, onEdit: () 
 
 /** Apple Pay tarzı onay: yeşil daire, işaret, "Ödendi". Etiket, bunun bir oyun gösterimi olduğunu açıkça söyler. */
 @Composable
-private fun PaidPanel() {
+private fun PaidPanel(amount: String) {
     val c = Wault.colors
     Column(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.size(84.dp).clip(CircleShape).background(Color(0xFF30B158)), contentAlignment = Alignment.Center) {
@@ -210,8 +219,12 @@ private fun PaidPanel() {
         }
         Spacer(Modifier.height(14.dp))
         Text("Ödendi", style = WaultType.title, color = c.label)
-        Spacer(Modifier.height(4.dp))
-        Text("Rol oyunu gösterimi, gerçek ödeme değil", style = WaultType.subhead, color = c.secondary, textAlign = TextAlign.Center)
+        if (amount.isNotBlank()) {
+            Spacer(Modifier.height(2.dp))
+            Text("₺ " + amount.replace('.', ','), style = WaultType.title, color = c.label)
+        }
+        Spacer(Modifier.height(6.dp))
+        Text("Rol oyunu", style = WaultType.footnote, color = c.secondary, textAlign = TextAlign.Center)
     }
 }
 

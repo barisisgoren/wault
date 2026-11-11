@@ -45,7 +45,7 @@ private val options = listOf(
     AddOption(CardKind.LOYALTY, Glyph.STAR, "Sadakat kartı", "Üye numarası, puan ve barkod"),
     AddOption(CardKind.CODE, Glyph.QR, "QR veya barkod", "Bilet, giriş kodu, kupon"),
     AddOption(CardKind.NFC_COPY, Glyph.NFC_PHONE, "NFC kartı kopyala", "Etiket, anahtarlık, NDEF kartlar"),
-    AddOption(CardKind.SHOWCASE, Glyph.CARD, "Vitrin kartı", "Sadece görünüm; ödeme yapmaz"),
+    AddOption(CardKind.SHOWCASE, Glyph.CARD, "Sahte kart (rol oyunu)", "İstediğin ad ve bankayla; tutar yazıp \"Ödendi\" göster"),
 )
 
 @Composable
