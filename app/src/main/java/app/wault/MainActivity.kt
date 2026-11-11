@@ -45,7 +45,7 @@ class MainActivity : FragmentActivity() {
         setContent {
             val prefs by app.container.prefs.state.collectAsState()
             val systemDark = isSystemInDarkTheme()
-            val dark = (if (BuildConfig.DEBUG) DevOptions.darkOverride else null) ?: when (prefs.themeMode) {
+            val dark = DevOptions.darkOverride ?: when (prefs.themeMode) {
                 ThemeMode.LIGHT -> false
                 ThemeMode.DARK -> true
                 ThemeMode.SYSTEM -> systemDark

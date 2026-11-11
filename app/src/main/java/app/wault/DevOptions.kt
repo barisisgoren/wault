@@ -5,8 +5,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
 /**
- * Yalnızca debug derlemede kullanılan geliştirme ayarları. Kalıcı değildir; uygulama süreci kapanınca sıfırlanır.
- * Release derlemede hiçbir yerden açılamaz (bkz. MainActivity.handle ve SettingsScreen).
+ * Geliştirici modunda (Ayarlar > Geliştirici modu) kullanılan ayarlar. Kalıcı değildir; uygulama süreci kapanınca sıfırlanır.
+ * adb ile komut gönderme (MainActivity.handle) yalnızca debug derlemede açıktır.
  */
 object DevOptions {
     /**

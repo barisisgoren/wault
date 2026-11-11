@@ -197,7 +197,7 @@ fun SettingsScreen(
             var recolored by remember { mutableStateOf(false) }
             Group(
                 header = "Kartlar",
-                footer = "Kartları ana ekranda basılı tutup sürükleyerek de sıralayabilirsin. " +
+                footer = "Kartları ana ekranda yukarı ya da aşağı sürükleyerek de sıralayabilirsin (çok kart varsa basılı tutup sürükle). " +
                     "Renk yenileme ödeme kartlarını bağlı uygulamanın rengine boyar; fotoğraf ve hazır modeller değişmez.",
             ) {
                 GroupRow("Kartları sırala", leading = { IconTile(Glyph.HANDLE, Color(0xFFFF9F0A)) }, chevron = true, onClick = onReorder)
@@ -232,11 +232,19 @@ fun SettingsScreen(
                 )
             }
 
-            if (BuildConfig.DEBUG) {
+            Spacer(Modifier.height(28.dp))
+            Group(footer = "Deneme modu, örnek kartlar ve karşılama ekranı gibi araçları açar.") {
+                SwitchRow(
+                    "Geliştirici modu", prefs.developerMode,
+                    { on -> container.prefs.update { it.copy(developerMode = on) }; if (!on) { DevOptions.dryRun = false; DevOptions.pretended = null; DevOptions.darkOverride = null; if (DevOptions.demoActive) container.store.leaveDemo() } },
+                )
+            }
+
+            if (prefs.developerMode) {
                 Spacer(Modifier.height(28.dp))
                 Group(
                     header = "Geliştirici",
-                    footer = "Yalnızca debug derlemede görünür. Deneme modunda karta dokunmak telefonun gerçek ödeme ayarını değiştirmez.",
+                    footer = "Deneme modunda karta dokunmak telefonun gerçek ödeme ayarını değiştirmez. Ödeme anını denemek için sahte bir kart oluşturup okut.",
                 ) {
                     SwitchRow(
                         "Deneme modu", DevOptions.dryRun,
@@ -264,19 +272,12 @@ fun SettingsScreen(
                     )
                     Separator()
                     GroupRow("Karşılama ekranını göster", titleColor = c.accent, onClick = onPreviewOnboarding)
-                    Separator()
-                    GroupRow("Ödendi anını dene", titleColor = c.accent, onClick = {
-                        val cards = container.store.cards.value
-                        val card = cards.firstOrNull { it.id in env.defaultIds } ?: cards.firstOrNull { it.kind == CardKind.PAYMENT }
-                        onBack()
-                        PaymentEvents.emit(PaidEvent(card?.id, "₺245,90", "debug"))
-                    })
                 }
             }
 
             Spacer(Modifier.height(28.dp))
             Text(
-                "Kartların sadece bu telefonda, telefonun güvenli anahtarıyla şifreli durur. Wault kart numarası, güvenlik kodu ya da ödeme anahtarı saklamaz; ödemeyi bankanın uygulaması yapar.",
+                "Kartların sadece bu telefonda, telefonun güvenli anahtarıyla şifreli durur. Kart numarası ve güvenlik kodunu istersen kaydedersin; görmek için parmak izi ya da PIN gerekir. Ödeme anahtarı saklanmaz, ödemeyi bankanın uygulaması yapar.",
                 style = WaultType.footnote, color = c.secondary, modifier = Modifier.padding(horizontal = 16.dp),
             )
             Spacer(Modifier.height(28.dp))

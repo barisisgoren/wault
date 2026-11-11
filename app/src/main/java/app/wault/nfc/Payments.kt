@@ -126,7 +126,7 @@ object PaymentSwitcher {
         val adapter = NfcAdapter.getDefaultAdapter(activity) ?: return SwitchOutcome.NfcUnavailable
         if (!adapter.isEnabled) return SwitchOutcome.NfcOff
         if (isDefault(activity, link)) return SwitchOutcome.AlreadyDefault
-        if (BuildConfig.DEBUG && DevOptions.dryRun) {
+        if (DevOptions.dryRun) {
             DevOptions.pretended = DevOptions.Pretended(link.packageName)
             return SwitchOutcome.Silent
         }
@@ -143,7 +143,7 @@ object PaymentSwitcher {
         val adapter = NfcAdapter.getDefaultAdapter(activity) ?: return SwitchOutcome.NfcUnavailable
         if (!adapter.isEnabled) return SwitchOutcome.NfcOff
         if (isDefault(activity, link)) return SwitchOutcome.AlreadyDefault
-        if (BuildConfig.DEBUG && DevOptions.dryRun) return SwitchOutcome.AskedSystem
+        if (DevOptions.dryRun) return SwitchOutcome.AskedSystem
         val change = Intent(CardEmulation.ACTION_CHANGE_DEFAULT)
             .putExtra(CardEmulation.EXTRA_CATEGORY, CardEmulation.CATEGORY_PAYMENT)
             .putExtra(CardEmulation.EXTRA_SERVICE_COMPONENT, ComponentName(link.packageName, link.serviceClass))

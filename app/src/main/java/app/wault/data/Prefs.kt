@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.asStateFlow
 
 data class WaultPrefs(
     val biometricLock: Boolean = false,
+    /** Ayarlar > Geliştirici modu: açıkken geliştirici araçları görünür. */
+    val developerMode: Boolean = false,
     val replaceBankNotification: Boolean = false,
     val onboarded: Boolean = false,
     /** Vitrin kartı seçilince (Shizuku hazırsa) varsayılan ödeme uygulamasını kaldır. */
@@ -31,6 +33,7 @@ class Prefs(context: Context) {
 
     private fun read() = WaultPrefs(
         biometricLock = sp.getBoolean("biometricLock", false),
+        developerMode = sp.getBoolean("developerMode", false),
         replaceBankNotification = sp.getBoolean("replaceBankNotification", false),
         onboarded = sp.getBoolean("onboarded", false),
         showcaseTurnsOffPayment = sp.getBoolean("showcaseTurnsOffPayment", true),
@@ -45,6 +48,7 @@ class Prefs(context: Context) {
         val next = block(_state.value)
         sp.edit()
             .putBoolean("biometricLock", next.biometricLock)
+            .putBoolean("developerMode", next.developerMode)
             .putBoolean("replaceBankNotification", next.replaceBankNotification)
             .putBoolean("onboarded", next.onboarded)
             .putBoolean("showcaseTurnsOffPayment", next.showcaseTurnsOffPayment)

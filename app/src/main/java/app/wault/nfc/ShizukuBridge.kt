@@ -54,19 +54,19 @@ object ShizukuBridge {
     }
 
     suspend fun walletHolders(): List<String> {
-        if (BuildConfig.DEBUG) DevOptions.pretended?.let { return listOfNotNull(it.packageName) }
+        DevOptions.pretended?.let { return listOfNotNull(it.packageName) }
         return runCatching { RoleShell.parseHolders(run(RoleShell.getHolders()).output) }.getOrDefault(emptyList())
     }
 
     /** Varsayılan ödeme uygulamasını verilen pakete geçirir. */
     suspend fun setWalletHolder(pkg: String): Boolean {
-        if (BuildConfig.DEBUG && DevOptions.dryRun) { DevOptions.pretended = DevOptions.Pretended(pkg); return true }
+        if (DevOptions.dryRun) { DevOptions.pretended = DevOptions.Pretended(pkg); return true }
         return runCatching { run(RoleShell.addHolder(pkg)).exitCode == 0 }.getOrDefault(false)
     }
 
     /** Hiçbir ödeme uygulaması varsayılan olmasın: mevcut cüzdan sahibini kaldırır. */
     suspend fun clearWalletHolder(): Boolean {
-        if (BuildConfig.DEBUG && DevOptions.dryRun) { DevOptions.pretended = DevOptions.Pretended(null); return true }
+        if (DevOptions.dryRun) { DevOptions.pretended = DevOptions.Pretended(null); return true }
         return runCatching {
             val holders = walletHolders()
             holders.all { run(RoleShell.removeHolder(it)).exitCode == 0 }

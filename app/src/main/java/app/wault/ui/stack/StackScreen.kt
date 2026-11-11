@@ -230,7 +230,7 @@ fun StackScreen(
                 val holder = ShizukuBridge.walletHolders().firstOrNull()
                 if (holder != null) {
                     // Deneme modunda (debug) benzetilen cüzdan, kullanıcının gerçek ayarına yazılmaz
-                    if (!(BuildConfig.DEBUG && DevOptions.dryRun)) prefs.update { it.copy(lastWalletPackage = holder) }
+                    if (!DevOptions.dryRun) prefs.update { it.copy(lastWalletPackage = holder) }
                     if (ShizukuBridge.clearWalletHolder()) activity.resumeTick.intValue++
                 }
             }
