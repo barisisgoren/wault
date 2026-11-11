@@ -99,7 +99,7 @@ fun SettingsScreen(
                 }
                 Separator()
                 ChoiceRow("Tema") {
-                    Segmented(ThemeMode.entries, prefs.themeMode, { it.label }, { m -> container.prefs.update { it.copy(themeMode = m) } })
+                    Segmented(ThemeMode.entries, prefs.themeMode, { it.label }, { m -> DevOptions.darkOverride = null; container.prefs.update { it.copy(themeMode = m) } })
                 }
                 Separator()
                 ChoiceRow("Kart stili") {
@@ -250,14 +250,6 @@ fun SettingsScreen(
                         "Deneme modu", DevOptions.dryRun,
                         { on -> DevOptions.dryRun = on; if (!on) DevOptions.pretended = null },
                     )
-                    Separator()
-                    Box(Modifier.padding(10.dp)) {
-                        Segmented(
-                            listOf<Boolean?>(null, false, true), DevOptions.darkOverride,
-                            { when (it) { null -> "Sistem"; false -> "Açık"; true -> "Koyu" } },
-                            { DevOptions.darkOverride = it },
-                        )
-                    }
                     Separator()
                     GroupRow(
                         if (DevOptions.demoActive) "Örnek kartları kapat" else "Örnek kartları göster",

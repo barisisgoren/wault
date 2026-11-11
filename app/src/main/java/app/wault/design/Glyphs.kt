@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /** Wault'un kendi çizdiği ikonlar. Tek çizgi kalınlığı, yuvarlak uç. */
-enum class Glyph { PLUS, CLOSE, HANDLE, CONTACTLESS, QR, BARCODE, CHIP, CHECK, CAMERA, IMAGE, NFC_PHONE, SLIDERS, CHEVRON, CARD, STAR, MORE, BELL, LOCK, TRASH }
+enum class Glyph { PLUS, CLOSE, HANDLE, CONTACTLESS, QR, BARCODE, CHIP, CHECK, CAMERA, IMAGE, NFC_PHONE, SLIDERS, CHEVRON, CARD, STAR, MORE, BELL, LOCK, TRASH, COPY }
 
 @Composable
 fun GlyphIcon(glyph: Glyph, tint: Color, modifier: Modifier = Modifier, size: Dp = 22.dp) {
@@ -109,6 +109,13 @@ fun GlyphIcon(glyph: Glyph, tint: Color, modifier: Modifier = Modifier, size: Dp
             Glyph.TRASH -> {
                 line(0.2f, 0.28f, 0.8f, 0.28f); line(0.4f, 0.18f, 0.6f, 0.18f)
                 line(0.28f, 0.28f, 0.32f, 0.84f); line(0.32f, 0.84f, 0.68f, 0.84f); line(0.68f, 0.84f, 0.72f, 0.28f)
+            }
+            Glyph.COPY -> {
+                // iki üst üste dikdörtgen: arkadaki yalnızca sol-üst köşesiyle görünür
+                line(0.34f, 0.16f, 0.78f, 0.16f); line(0.78f, 0.16f, 0.78f, 0.62f)
+                line(0.16f, 0.34f, 0.62f, 0.34f); line(0.62f, 0.34f, 0.62f, 0.84f)
+                line(0.62f, 0.84f, 0.16f, 0.84f); line(0.16f, 0.84f, 0.16f, 0.34f)
+                line(0.34f, 0.34f, 0.34f, 0.16f)
             }
             Glyph.SLIDERS -> {
                 // iki ayar sürgüsü: çizgi + üzerinde dolu düğme

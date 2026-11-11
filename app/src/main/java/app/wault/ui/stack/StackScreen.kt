@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.DisposableEffect
@@ -640,7 +641,6 @@ private fun Stage(
                             elevation = if (isAnchor) 14.dp else 6.dp + 16.dp * lift,
                             // alttaki yığında sadece kartların kenarları görünsün
                             showFace = (selectedId == null && collapsedAtRest) || isAnchor || isDragged,
-                            revealed = isAnchor && st.revealed,
                         )
                     }
                 }
@@ -727,12 +727,13 @@ private fun EmptyWallet(onAdd: () -> Unit) {
 
 /** Kartın arkası: sağ üstte ayar simgesi (düzenleme), altta kart bilgilerini gösteren düğme; CVV burada görünür. */
 @Composable
-private fun CardBack(
+internal fun CardBack(
     card: WaultCard, revealed: Boolean, onEdit: () -> Unit, onReveal: () -> Unit, onHide: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val art = app.wault.design.rememberCardArt(card)
     val hasInfo = card.pan.isNotBlank() || card.cvv.isNotBlank()
+    val context = androidx.compose.ui.platform.LocalContext.current
     Box(modifier) {
         CardSurface(card, elevation = 14.dp, showFace = false)
         Column(Modifier.matchParentSize().padding(20.dp)) {
@@ -748,10 +749,16 @@ private fun CardBack(
                 ) { app.wault.design.GlyphIcon(app.wault.design.Glyph.SLIDERS, art.ink, size = 22.dp) }
             }
             Spacer(Modifier.weight(1f))
-            if (revealed && card.cvv.isNotBlank()) {
-                Text("CVV", style = WaultType.caption, color = art.inkSoft)
-                Text(card.cvv, style = WaultType.cardNumber.copy(fontSize = 26.sp), color = art.ink)
-                Spacer(Modifier.height(12.dp))
+            if (revealed) {
+                // Bilgiler yalnızca kartın arkasında görünür; her satırın ucunda kopyalama düğmesi var
+                if (card.pan.isNotBlank()) {
+                    InfoRow("Kart numarası", card.pan.chunked(4).joinToString(" "), art, big = true) { copySensitive(context, "Kart numarası", card.pan) }
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    if (card.expiry.isNotBlank()) Box(Modifier.weight(1f)) { InfoRow("Son kullanma", card.expiry, art) { copySensitive(context, "Son kullanma", card.expiry) } }
+                    if (card.cvv.isNotBlank()) Box(Modifier.weight(1f)) { InfoRow("CVV", card.cvv, art) { copySensitive(context, "CVV", card.cvv) } }
+                }
+                Spacer(Modifier.height(10.dp))
             }
             if (hasInfo) {
                 Row(
@@ -769,4 +776,31 @@ private fun CardBack(
             }
         }
     }
+}
+
+@Composable
+private fun InfoRow(label: String, value: String, art: app.wault.design.CardArt, big: Boolean = false, onCopy: () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(label, style = WaultType.caption, color = art.inkSoft)
+            Text(value, style = WaultType.cardNumber.copy(fontSize = if (big) 19.sp else 16.sp), color = art.ink, maxLines = 1, softWrap = false)
+        }
+        Box(
+            Modifier.size(34.dp).clip(CircleShape).background(art.ink.copy(alpha = 0.16f))
+                .clickable(role = Role.Button, onClickLabel = "$label kopyala", onClick = onCopy),
+            contentAlignment = Alignment.Center,
+        ) { app.wault.design.GlyphIcon(app.wault.design.Glyph.COPY, art.ink, size = 16.dp) }
+    }
+}
+
+/** Panoya hassas olarak işaretleyip kopyalar; bir dakika sonra panoyu temizler. */
+private fun copySensitive(context: android.content.Context, label: String, text: String) {
+    val cm = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+    val clip = android.content.ClipData.newPlainText(label, text)
+    clip.description.extras = android.os.PersistableBundle().apply { putBoolean("android.content.extra.IS_SENSITIVE", true) }
+    cm.setPrimaryClip(clip)
+    android.widget.Toast.makeText(context, "$label kopyalandı", android.widget.Toast.LENGTH_SHORT).show()
+    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+        runCatching { if (cm.primaryClipDescription?.label == label) cm.clearPrimaryClip() }
+    }, 60_000)
 }
