@@ -48,6 +48,20 @@ class CardBackRenderTest {
         rule.onNodeWithTag("back").captureRoboImage(Shots.path("card_back_revealed"))
     }
 
+    @Test fun networkLogosRenderLarge() {
+        rule.setContent {
+            WaultTheme(dark = false) {
+                androidx.compose.foundation.layout.Column(Modifier.padding(16.dp).testTag("nets")) {
+                    listOf(app.wault.data.CardNetwork.VISA, app.wault.data.CardNetwork.MASTERCARD, app.wault.data.CardNetwork.AMEX).forEach { n ->
+                        app.wault.design.CardSurface(card.copy(title = n.label, network = n, artId = "ocean"))
+                        androidx.compose.foundation.layout.Spacer(Modifier.padding(4.dp))
+                    }
+                }
+            }
+        }
+        rule.onNodeWithTag("nets").captureRoboImage(Shots.path("network_logos"))
+    }
+
     @Test fun hiddenBackShowsNothingSensitive() {
         show(false)
         rule.onNodeWithText("Kart bilgilerini göster").assertIsDisplayed()

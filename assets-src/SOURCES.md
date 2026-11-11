@@ -3,7 +3,7 @@
 | Dosya | Kaynak | Not |
 |---|---|---|
 | `assets-src/troy/*.svg`, `res/drawable/ic_scheme_troy*.xml` | TROY Medya Merkezi, `TROY-Logolar.zip` (https://www.troyodeme.com/en/about-troy/media-center) | Resmi logo, vektöre çevrildi, değiştirilmedi. TROY / BKM ticari markasıdır. Kullanım kuralları: TROY Marka Kılavuzu (aynı sayfa). |
-| `res/drawable/ic_mc.xml`, `ic_amex.xml` | Simple Icons 13.21.0 (`mastercard.svg`, `americanexpress.svg`, https://simpleicons.org). Yol verisi birebir aynı, 2026-11-11'de karşılaştırıldı | Simple Icons dosyaları CC0 ama **markalar Mastercard ve American Express'indir**. Tek renkli işaret olarak kartın yazı renginde çizilir. |
+| `res/drawable-nodpi/net_mastercard.png`, `net_visa.png`, `net_amex.png` | Proje sahibinin sağladığı Mastercard, Visa ve American Express logo görselleri (arka planı şeffaflaştırıldı, kırpıldı) | **Markalar ilgili şirketlerindir.** Mastercard ve Amex kendi renginde; Visa koyu kartta beyaza boyanır. |
 | Visa | Dosya yok, kartlarda "VISA" yazısıyla gösterilir | Resmi logo sözleşme kabulü ve onaylı iş ortaklığı ister (Visa Brand Standards). |
 | Banka logoları | Dosya yok | Ödeme uygulamalarının ikonu telefondan çalışma anında okunur (`AppIcon`). Kart rengi de aynı ikondan çıkarılır (`CardArts.fromIcon`). |
 | Yazı tipi | Instrument Sans (SIL Open Font License 1.1) | `res/font/instrument_sans_*.ttf` |

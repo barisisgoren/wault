@@ -327,16 +327,19 @@ private fun NetworkBadge(network: CardNetwork, art: CardArt) {
             contentDescription = "Troy",
             modifier = Modifier.height(15.dp),
         )
+        // Resmî logolar, gerçek kartlardaki gibi büyük. Mastercard ve Amex kendi renginde; Visa koyu kartta beyaz
         CardNetwork.MASTERCARD -> Image(
-            painterResource(R.drawable.ic_mc), contentDescription = network.label,
-            modifier = Modifier.height(26.dp), colorFilter = ColorFilter.tint(art.ink),
+            painterResource(R.drawable.net_mastercard), contentDescription = network.label,
+            modifier = Modifier.height(40.dp),
         )
         CardNetwork.AMEX -> Image(
-            painterResource(R.drawable.ic_amex), contentDescription = network.label,
-            modifier = Modifier.height(26.dp), colorFilter = ColorFilter.tint(art.ink),
+            painterResource(R.drawable.net_amex), contentDescription = network.label,
+            modifier = Modifier.height(40.dp),
         )
-        CardNetwork.VISA -> Text(
-            "VISA", style = WaultType.cardScheme.copy(fontSize = 17.sp, letterSpacing = 0.8.sp), color = art.ink,
+        CardNetwork.VISA -> Image(
+            painterResource(R.drawable.net_visa), contentDescription = network.label,
+            modifier = Modifier.height(24.dp),
+            colorFilter = if (art.lightInk) ColorFilter.tint(Color.White) else null,
         )
     }
 }
