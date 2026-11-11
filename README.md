@@ -1,43 +1,57 @@
 # Wault
 
-Android için cüzdan: ödeme kartların, sadakat kartların, QR/barkodların ve NFC kartların tek yerde, Apple Wallet gibi üst üste dizili.
+[Türkçe](README.tr.md)
 
-- **Kart yığını:** dokun, yukarı çek, aşağı çek, basılı tutup sürükleyerek sırala. Kart parmağı birebir izler.
-- **Ödeme:** ödeme kartına dokununca telefonun varsayılan NFC ödeme uygulaması o bankanın uygulamasına geçer. Ödemeyi bankanın uygulaması yapar, onayı Wault gösterir.
-- **Kişiselleştirme:** kartlar varsayılan olarak düz renk. 21 hazır renk, bankanın uygulama rengi ya da istediğin renk kodu; isteyen kart başına gradyan seçer. Tema, vurgu rengi ve yazı rengi de değişir (Ayarlar > Görünüm).
-- **Kartlar:** ödeme, sadakat, QR/barkod, NFC kopya, vitrin. Kasa telefonun güvenli anahtarıyla şifrelenir.
+A wallet for Android. Payment cards, loyalty cards, QR codes and barcodes, and NFC tags live in one place, stacked like a deck of cards.
+
+<p align="center"><img src="docs/preview.gif" alt="Wault preview" width="300"></p>
+
+## Features
+
+- **Card stack.** Drag a card up or down to reorder it. Tap to enlarge it. Drag sideways to flip it: the card follows your finger and turns as far as you pull.
+- **Payments.** Tap a payment card and the phone's default NFC payment app switches to that bank's app. The bank's app makes the payment; Wault shows the confirmation.
+- **Card details.** Store the card number and security code if you want to. They are kept encrypted on the device, shown on the back of the card only after fingerprint or PIN, and each line has a copy button.
+- **Loyalty cards and codes.** Scan a barcode or QR code with the camera or from a photo. The format is detected automatically, and the screen brightens when a code is shown.
+- **NFC copy.** Read a tag, keep it, and write it to a blank tag later.
+- **Personalisation.** Cards are flat colours by default. Pick from 21 presets, the bank app's colour, or any hex colour, and choose a gradient per card if you like. Light, dark and accent colours are in Settings.
+- **Fake cards.** A card that only looks like a card. Hold the phone to an NFC tag, enter an amount and a full-screen "Paid" screen plays. It never talks to a payment terminal.
+- **Developer mode.** Settings > Developer mode adds a dry-run mode (tapping a card never changes the phone's real payment setting), sample cards and an onboarding preview.
 
 Kotlin, Jetpack Compose. `minSdk 28`, `targetSdk 36`.
 
-## Kurulum
+## Install
 
-[Releases](../../releases) sayfasındaki `Wault-*.apk` dosyasını indirip kur. APK, herkese açık debug anahtarıyla imzalıdır (kişisel kullanım içindir, mağaza imzası değildir). Kendi imzanla kullanmak için aşağıdaki gibi derle.
+Download `Wault-*.apk` from the [Releases](../../releases) page and install it. The APK is signed with the public Android debug key. That is fine for personal use, but it is not a store signature. To sign it with your own key:
 
 ```bash
 ./gradlew assembleRelease      # app/build/outputs/apk/release/app-release-unsigned.apk
-apksigner sign --ks <anahtar.jks> --out Wault.apk app-release-unsigned.apk
+apksigner sign --ks <your-key.jks> --out Wault.apk app-release-unsigned.apk
 ```
 
-## Derleme ve test
+## Build and test
 
 ```bash
 ./gradlew assembleDebug        # app/build/outputs/apk/debug/app-debug.apk
-./gradlew testDebugUnitTest    # birim ve arayüz testleri (telefonsuz)
+./gradlew testDebugUnitTest    # unit and UI tests, no phone needed
 ./gradlew lintDebug
 ```
 
-Arayüz testleri Robolectric ile bilgisayarda çalışır: uygulamanın bütünü açılır, dokunma, çekme ve sürükleme denenir, kartların gerçekten düz çizildiği piksellerden doğrulanır. Ekran görüntüleri `app/build/test-screenshots/` altına yazılır. Telefon gerekmez.
+The UI tests run on the computer with Robolectric. They open the whole app, tap, drag and flip cards, and check pixels to prove that flat cards really are flat. Screenshots are written to `app/build/test-screenshots/`.
 
-Windows kullanıcı adında ASCII dışı karakter varsa Gradle için `JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=<proje>/.tmp` verilmeli.
+If your Windows user name contains non-ASCII characters, Gradle needs `JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=<project>/.tmp`.
 
-## Debug derlemede geliştirme seçenekleri
+## Developer tools
 
-Ayarlar > Geliştirici (yalnızca debug): **deneme modu** (karta dokunmak telefonun gerçek ödeme ayarını değiştirmez), örnek kartlar, tema.
-`adb shell am start -n app.wault/.MainActivity --ez dry_run true --ez demo true --ei demo_count 15 --es theme light`
+With Developer mode on (Settings), the Developer group has a dry-run mode, sample cards and an onboarding preview. Debug builds also accept adb extras:
 
-## Notlar
+```bash
+adb shell am start -n app.wault/.MainActivity --ez dry_run true --ez demo true --ei demo_count 15 --es theme light
+```
 
-- Tasarım kararları: [DESIGN.md](DESIGN.md). Görsel kaynakları ve lisans notları: [assets-src/SOURCES.md](assets-src/SOURCES.md).
-- Sessiz ödeme geçişi için [Shizuku](https://shizuku.rikka.app) gerekir; yoksa Android'in sistem seçicisi açılır.
-- Hazır kart görselleri şimdilik yok (`CardCatalog` boş). Eklemek için `app/src/main/assets/card_faces/<id>.webp` koyup `CardImages.kt` içindeki listeye satır ekle; üzerinde ad veya numara olmamalı.
-- Kart ağı işaretleri üçüncü tarafların markalarıdır; yayınlarken izinleri gözden geçir.
+## Notes
+
+- Design decisions: [DESIGN.md](DESIGN.md) (in Turkish). Asset sources and licence notes: [assets-src/SOURCES.md](assets-src/SOURCES.md).
+- Silent payment-app switching needs [Shizuku](https://shizuku.rikka.app). Without it Android's system picker opens instead.
+- There are no built-in card face images yet (`CardCatalog` is empty). To add one, put `app/src/main/assets/card_faces/<id>.webp` in place and add a line to the list in `CardImages.kt`. The image must not contain a name or a card number.
+- Card network logos (Visa, Mastercard, American Express, Troy) are trademarks of their owners. Check their brand rules before you publish a build.
+- The app interface is currently in Turkish.
