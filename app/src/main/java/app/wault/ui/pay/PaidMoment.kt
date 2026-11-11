@@ -129,6 +129,7 @@ fun PaidMoment(event: PaidEvent, card: WaultCard?, onDone: () -> Unit) {
     val c = Wault.colors
     val reduced = Wault.reducedMotion
     val view = LocalView.current
+    val glowOn = Wault.appearance.lightEffects
     val fade = remember { Animatable(if (reduced) 1f else 0f) }
     val ring = remember { Animatable(if (reduced) 1f else 0f) }
     val check = remember { Animatable(if (reduced) 1f else 0f) }
@@ -156,8 +157,8 @@ fun PaidMoment(event: PaidEvent, card: WaultCard?, onDone: () -> Unit) {
             .graphicsLayer { alpha = fade.value }
             .background(c.bg)
             .drawBehind {
-                // Onay halkasının yeşili zemine yumuşak bir ışık olarak yayılır
-                drawRect(
+                // Işık efektleri açıksa onay halkasının yeşili zemine yumuşak bir ışık olarak yayılır
+                if (glowOn) drawRect(
                     Brush.radialGradient(
                         listOf(PaidGreen.copy(alpha = (if (c.isDark) 0.26f else 0.16f) * ring.value), Color.Transparent),
                         center = Offset(size.width / 2f, size.height * 0.42f),

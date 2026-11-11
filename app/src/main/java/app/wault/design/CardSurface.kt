@@ -1,5 +1,6 @@
 package app.wault.design
 
+import app.wault.data.CardStyle
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -67,18 +68,24 @@ val CardCorner = 14.dp
 
 private val CardPadding = 18.dp
 
-/** Kartın renk görseli. "auto" ise bankanın uygulama ikonundan çıkarılır. */
+/** Kartın renk görseli. "auto" ise bankanın uygulama ikonundan, "custom" ise kartın kendi renginden gelir. */
 @Composable
 fun rememberCardArt(card: WaultCard): CardArt {
     val context = LocalContext.current
-    return remember(card.artId, card.payment?.packageName) {
-        if (card.artId == "auto") CardArts.fromIcon(context, card.payment?.packageName) else CardArts.byId(card.artId)
+    return remember(card.artId, card.customColor, card.ink, card.payment?.packageName) {
+        val art = when (card.artId) {
+            "auto" -> CardArts.fromIcon(context, card.payment?.packageName)
+            "custom" -> CardArt("custom", "Özel", colorFromArgbLong(card.customColor ?: CardArts.custom.base.toArgbLong()))
+            else -> CardArts.byId(card.artId)
+        }
+        art.withInk(card.ink)
     }
 }
 
 /**
- * Kartın yüzü. Arayüzün tek canlı parçası: iki duraklı renk geçişi, köşede ikinci bir renk lekesi, sol üstten düşen
- * yumuşak ışık (telefonu eğince kayar), alt kenarda koyulaşma, bantlanmayı kıran ince tanecik ve 1dp kenar parıltısı.
+ * Kartın yüzü. Varsayılan düz tek renk (Apple Wallet geçişleri gibi): renk, ince kenar çizgisi ve yumuşak gölge.
+ * Kartın ya da uygulamanın stili gradyansa: renk geçişi, köşede ikinci renk lekesi, alt kenarda koyulaşma,
+ * bantlanmayı kıran ince tanecik; "Işık efektleri" açıksa telefonu eğince kayan bir parlama.
  * Üstünde sadece kartı tanıtan bilgiler durur.
  */
 @Composable
@@ -93,6 +100,8 @@ fun CardSurface(
     val context = LocalContext.current
     val shape = RoundedCornerShape(CardCorner)
     val art = rememberCardArt(card)
+    val appearance = Wault.appearance
+    val style = card.style ?: appearance.cardStyle
     val photo by produceState<Bitmap?>(null, card.faceSource, card.faceRef) {
         value = if (card.faceSource == FaceSource.THEME) null
         else withContext(Dispatchers.IO) { CardImages.load(context, card.faceSource, card.faceRef) }
@@ -122,7 +131,7 @@ fun CardSurface(
         return
     }
 
-    val tiltOn = !Wault.reducedMotion
+    val shine = appearance.lightEffects && !Wault.reducedMotion && style == CardStyle.GRADIENT
     Box(
         modifier
             .fillMaxWidth()
@@ -131,42 +140,52 @@ fun CardSurface(
             .clip(shape)
             .drawWithCache {
                 val dark = art.dark
-                val base = Brush.linearGradient(art.stops, Offset(0f, 0f), Offset(size.width, size.height))
-                val glow = Brush.radialGradient(
-                    listOf(art.glow.copy(alpha = if (dark) 0.5f else 0.55f), Color.Transparent),
-                    center = Offset(size.width * 1.0f, size.height * 1.1f),
-                    radius = size.width * 0.85f,
-                )
-                val floor = Brush.verticalGradient(
-                    0.5f to Color.Transparent,
-                    1f to Color.Black.copy(alpha = if (dark) 0.2f else 0.05f),
-                )
-                val rim = Brush.linearGradient(
-                    0f to Color.White.copy(alpha = if (dark) 0.34f else 0.85f),
-                    0.45f to Color.White.copy(alpha = 0.05f),
-                    1f to Color.White.copy(alpha = if (dark) 0.12f else 0.4f),
-                    start = Offset(0f, 0f), end = Offset(size.width, size.height),
-                )
                 val corner = CornerRadius(CardCorner.toPx())
                 val rimStroke = Stroke(1.5.dp.toPx()) // yarısı kırpılır: görünen çizgi ~0,75dp
-                val sheenAlpha = if (dark) 0.15f else 0.5f
-                val grainAlpha = if (dark) 0.5f else 0.3f
-                onDrawWithContent {
-                    drawRect(base)
-                    drawRect(glow)
-                    val tx = if (tiltOn) Tilt.x else 0f
-                    val ty = if (tiltOn) Tilt.y else 0f
-                    drawRect(
-                        Brush.radialGradient(
-                            listOf(art.sheen.copy(alpha = sheenAlpha * (1f + 0.6f * kotlin.math.abs(tx))), Color.Transparent),
-                            center = Offset(size.width * (0.14f + 0.34f * tx), size.height * (-0.1f + 0.2f * ty)),
-                            radius = size.width * 0.92f,
-                        )
+                if (style == CardStyle.FLAT) {
+                    // Yığında üst üste duran aynı renkli kartlar ve açık zeminde beyaz kartlar için ince kenar
+                    val rim = if (dark) Color.White.copy(alpha = 0.14f) else Color.Black.copy(alpha = 0.09f)
+                    onDrawWithContent {
+                        drawRect(art.base)
+                        drawContent()
+                        drawRoundRect(rim, cornerRadius = corner, style = rimStroke)
+                    }
+                } else {
+                    val base = Brush.linearGradient(art.stops, Offset(0f, 0f), Offset(size.width, size.height))
+                    val glow = Brush.radialGradient(
+                        listOf(art.glow.copy(alpha = if (dark) 0.5f else 0.55f), Color.Transparent),
+                        center = Offset(size.width * 1.0f, size.height * 1.1f),
+                        radius = size.width * 0.85f,
                     )
-                    drawRect(floor)
-                    drawRect(GrainTile.brush, alpha = grainAlpha)
-                    drawContent()
-                    drawRoundRect(rim, cornerRadius = corner, style = rimStroke)
+                    val floor = Brush.verticalGradient(
+                        0.5f to Color.Transparent,
+                        1f to Color.Black.copy(alpha = if (dark) 0.2f else 0.05f),
+                    )
+                    val rim = Brush.linearGradient(
+                        0f to Color.White.copy(alpha = if (dark) 0.34f else 0.85f),
+                        0.45f to Color.White.copy(alpha = 0.05f),
+                        1f to Color.White.copy(alpha = if (dark) 0.12f else 0.4f),
+                        start = Offset(0f, 0f), end = Offset(size.width, size.height),
+                    )
+                    val sheenAlpha = if (dark) 0.15f else 0.5f
+                    val grainAlpha = if (dark) 0.5f else 0.3f
+                    onDrawWithContent {
+                        drawRect(base)
+                        drawRect(glow)
+                        val tx = if (shine) Tilt.x else 0f
+                        val ty = if (shine) Tilt.y else 0f
+                        drawRect(
+                            Brush.radialGradient(
+                                listOf(Color.White.copy(alpha = sheenAlpha * (1f + 0.6f * kotlin.math.abs(tx))), Color.Transparent),
+                                center = Offset(size.width * (0.14f + 0.34f * tx), size.height * (-0.1f + 0.2f * ty)),
+                                radius = size.width * 0.92f,
+                            )
+                        )
+                        drawRect(floor)
+                        drawRect(GrainTile.brush, alpha = grainAlpha)
+                        drawContent()
+                        drawRoundRect(rim, cornerRadius = corner, style = rimStroke)
+                    }
                 }
             }
             .padding(CardPadding)
@@ -333,25 +352,15 @@ private object GrainTile {
     val brush by lazy { ShaderBrush(ImageShader(bitmap, TileMode.Repeated, TileMode.Repeated)) }
 }
 
-/** Kart seçiciler için küçük kart örneği. */
+/** Kart seçiciler için küçük kart örneği: düz renk. */
 @Composable
 fun CardArtSwatch(art: CardArt, modifier: Modifier = Modifier, bar: Boolean = true) {
     Box(
         modifier
             .aspectRatio(CARD_RATIO)
             .clip(RoundedCornerShape(8.dp))
-            .drawWithCache {
-                val base = Brush.linearGradient(art.stops, Offset.Zero, Offset(size.width, size.height))
-                val glow = Brush.radialGradient(
-                    listOf(art.glow.copy(alpha = 0.5f), Color.Transparent),
-                    center = Offset(size.width, size.height * 1.1f), radius = size.width * 0.85f,
-                )
-                val light = Brush.radialGradient(
-                    listOf(Color.White.copy(alpha = if (art.dark) 0.18f else 0.5f), Color.Transparent),
-                    center = Offset(size.width * 0.1f, -size.height * 0.2f), radius = size.width,
-                )
-                onDrawBehind { drawRect(base); drawRect(glow); drawRect(light) }
-            }
+            .background(art.base)
+            .border(0.75.dp, if (art.dark) Color.White.copy(alpha = 0.14f) else Color.Black.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
     ) {
         if (bar) {
             Box(

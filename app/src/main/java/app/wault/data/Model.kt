@@ -49,6 +49,11 @@ data class WaultCard(
     val title: String,
     val subtitle: String = "",
     val artId: String = "midnight",
+    /** artId == "custom" iken kartın rengi (ARGB). */
+    val customColor: Long? = null,
+    /** null: uygulama genelindeki stil (Ayarlar > Görünüm) geçerli. */
+    val style: CardStyle? = null,
+    val ink: InkMode = InkMode.AUTO,
     val faceSource: FaceSource = FaceSource.THEME,
     val faceRef: String? = null,
     // ödeme / vitrin

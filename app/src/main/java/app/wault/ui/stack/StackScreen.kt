@@ -1,5 +1,7 @@
 package app.wault.ui.stack
 
+import app.wault.DevOptions
+import app.wault.BuildConfig
 import androidx.compose.foundation.background
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -196,6 +198,7 @@ fun StackScreen(
     val st = remember { StackState(selectedId) }
     val glow = lastShown?.let { shown -> rememberCardArt(shown).let { lerp(it.stops.first(), it.glow, 0.35f) } }
     val strongGlow = Wault.colors.isDark
+    val glowEnabled = Wault.appearance.lightEffects
 
     // Karta basıldığı anda: bağlı ödeme kartıysa varsayılan ödeme yöntemini bu karta geçir.
     LaunchedEffect(selectedId) {
@@ -212,7 +215,8 @@ fun StackScreen(
                 env.shizuku == ShizukuBridge.State.READY -> {
                 val holder = ShizukuBridge.walletHolders().firstOrNull()
                 if (holder != null) {
-                    prefs.update { it.copy(lastWalletPackage = holder) }
+                    // Deneme modunda (debug) benzetilen cüzdan, kullanıcının gerçek ayarına yazılmaz
+                    if (!(BuildConfig.DEBUG && DevOptions.dryRun)) prefs.update { it.copy(lastWalletPackage = holder) }
                     if (ShizukuBridge.clearWalletHolder()) activity.resumeTick.intValue++
                 }
             }
@@ -224,7 +228,7 @@ fun StackScreen(
             .fillMaxSize()
             // Seçili kartın rengi, kartın altından yayılan yumuşak bir ışık olarak tüm zemine vurur
             .drawBehind {
-                if (glow != null && st.sel > 0.001f) {
+                if (glowEnabled && glow != null && st.sel > 0.001f) {
                     drawRect(
                         Brush.radialGradient(
                             listOf(glow.copy(alpha = (if (strongGlow) 0.34f else 0.2f) * st.sel.coerceIn(0f, 1f)), Color.Transparent),
@@ -579,7 +583,7 @@ private fun Stage(
                             .padding(horizontal = Gutter)
                             .height(detailHeight)
                     ) {
-                        CardDetail(activity, shown, env, onEdit = { onEdit(shown) })
+                        CardDetail(activity, shown, env, onEdit = { onEdit(shown) }, onChange = { activity.app.container.store.upsert(it) })
                     }
                 }
             }

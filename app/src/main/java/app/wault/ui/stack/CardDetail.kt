@@ -1,5 +1,8 @@
 package app.wault.ui.stack
 
+import app.wault.ui.common.withCustomColor
+import app.wault.ui.common.ColorSheet
+import app.wault.ui.common.QuickColors
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -57,7 +60,7 @@ import app.wault.ui.common.AppIcon
 import app.wault.ui.common.ReadyPulse
 
 @Composable
-fun CardDetail(activity: MainActivity, card: WaultCard, env: Environment, onEdit: () -> Unit) {
+fun CardDetail(activity: MainActivity, card: WaultCard, env: Environment, onEdit: () -> Unit, onChange: (WaultCard) -> Unit = {}) {
     val tint = rememberCardArt(card).accentOn(Wault.colors.isDark)
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         when (card.kind) {
@@ -65,6 +68,14 @@ fun CardDetail(activity: MainActivity, card: WaultCard, env: Environment, onEdit
             CardKind.SHOWCASE -> ShowcaseDetail(activity, env, onEdit)
             CardKind.LOYALTY, CardKind.CODE -> CodeDetail(activity, card, onEdit)
             CardKind.NFC_COPY -> NfcDetail(activity, card, env, tint, onEdit)
+        }
+        Spacer(Modifier.height(20.dp))
+        var sheet by remember { mutableStateOf(false) }
+        Group(header = "Renk") {
+            QuickColors(card, onChange, onCustom = { sheet = true })
+        }
+        if (sheet) {
+            ColorSheet(current = rememberCardArt(card).base, onPick = { onChange(card.withCustomColor(it)) }, onDone = { sheet = false })
         }
         Spacer(Modifier.height(24.dp))
     }

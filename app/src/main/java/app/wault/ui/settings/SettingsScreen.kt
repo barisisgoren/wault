@@ -1,5 +1,16 @@
 package app.wault.ui.settings
 
+import app.wault.ui.common.ColorDot
+import app.wault.design.Tilt
+import app.wault.design.ChoiceRow
+import app.wault.design.CardSurface
+import app.wault.data.WaultCard
+import app.wault.data.ThemeMode
+import app.wault.data.CardStyle
+import app.wault.data.CardNetwork
+import app.wault.data.AccentChoice
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
 import app.wault.data.FaceSource
 import app.wault.ui.common.AppIcon
 import app.wault.design.Segmented
@@ -74,6 +85,48 @@ fun SettingsScreen(
         ) {
             Text("Ayarlar", style = WaultType.largeTitle, color = c.label, modifier = Modifier.padding(start = 4.dp))
             Spacer(Modifier.height(16.dp))
+
+            Group(header = "Görünüm") {
+                // Seçimlerin sonucunu hemen göstermek için küçük bir örnek kart
+                Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                    CardSurface(
+                        WaultCard(
+                            kind = CardKind.SHOWCASE, title = "Önizleme", subtitle = "Kart stili ve vurgu rengi",
+                            artId = "ocean", last4 = "1234", network = CardNetwork.VISA,
+                        ),
+                        Modifier.fillMaxWidth(0.8f), elevation = 6.dp,
+                    )
+                }
+                Separator()
+                ChoiceRow("Tema") {
+                    Segmented(ThemeMode.entries, prefs.themeMode, { it.label }, { m -> container.prefs.update { it.copy(themeMode = m) } })
+                }
+                Separator()
+                ChoiceRow("Kart stili") {
+                    Segmented(CardStyle.entries, prefs.cardStyle, { it.label }, { st -> container.prefs.update { it.copy(cardStyle = st) } })
+                }
+                Separator()
+                ChoiceRow("Vurgu rengi") {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        AccentChoice.entries.forEach { a ->
+                            ColorDot(
+                                Color(if (c.isDark) a.dark else a.light), prefs.accent == a, a.label,
+                                { container.prefs.update { it.copy(accent = a) } }, size = 28.dp,
+                            )
+                        }
+                    }
+                }
+                Separator()
+                SwitchRow(
+                    "Işık efektleri", prefs.lightEffects,
+                    { on ->
+                        container.prefs.update { it.copy(lightEffects = on) }
+                        if (on) Tilt.start(activity) else Tilt.stop()
+                    },
+                    subtitle = "Seçili kartın zemine yayılan ışığı ve gradyan kartlarda eğimle parlama",
+                )
+            }
+            Spacer(Modifier.height(28.dp))
 
             Group(header = "Ödeme") {
                 GroupRow(

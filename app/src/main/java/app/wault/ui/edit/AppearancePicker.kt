@@ -1,5 +1,12 @@
 package app.wault.ui.edit
 
+import app.wault.design.rememberCardArt
+import app.wault.design.ChoiceRow
+import app.wault.ui.common.withCustomColor
+import app.wault.ui.common.ColorSheet
+import app.wault.ui.common.PaletteGrid
+import app.wault.data.InkMode
+import app.wault.data.CardStyle
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -54,6 +61,7 @@ fun AppearancePicker(card: WaultCard, onChange: (WaultCard) -> Unit) {
             loading = false
         }
     }
+    var sheet by remember { mutableStateOf(false) }
     val available by produceState(true, card.faceSource, card.faceRef) {
         value = card.faceSource == FaceSource.THEME || withContext(Dispatchers.IO) { CardImages.load(context, card.faceSource, card.faceRef) != null }
     }
@@ -64,28 +72,18 @@ fun AppearancePicker(card: WaultCard, onChange: (WaultCard) -> Unit) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Segmented(listOf(0, 1, 2), tab, { listOf("Renkler", "Modeller", "Fotoğraf")[it] }, { tab = it })
             when (tab) {
-                // Uygulama seçilince başa "Uygulama rengi" eklenir; liste eski konumda kalıp onu gizlemesin diye yeniden kurulur
-                0 -> key(card.payment != null) { LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    // "Uygulama rengi" kartın kendi bankasının rengini gösterir; ödeme uygulaması yoksa seçenek yok
-                    val arts = CardArts.all.filter { it.id != "auto" || card.payment != null }
-                    items(arts, key = { it.id }) { art ->
-                        val shown = if (art.id == "auto") rememberCardArt(card.copy(artId = "auto")) else art
-                        val on = card.faceSource == FaceSource.THEME && card.artId == art.id
-                        Column(
-                            Modifier.width(108.dp).clip(RoundedCornerShape(12.dp))
-                                .selectable(on, role = Role.RadioButton) { onChange(card.copy(artId = art.id, faceSource = FaceSource.THEME, faceRef = null)) }
-                                .padding(4.dp),
-                        ) {
-                            Box(
-                                Modifier.fillMaxWidth()
-                                    .border(if (on) 2.dp else 0.dp, if (on) c.accent else Color.Transparent, RoundedCornerShape(11.dp))
-                                    .padding(if (on) 3.dp else 0.dp)
-                            ) { CardArtSwatch(shown, Modifier.fillMaxWidth()) }
-                            Spacer(Modifier.height(8.dp))
-                            Text(art.name, style = WaultType.footnote, color = if (on) c.accent else c.secondary, maxLines = 1)
-                        }
+                0 -> Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    PaletteGrid(card, onChange, onCustom = { sheet = true })
+                    ChoiceRow("Stil") {
+                        Segmented(
+                            listOf<CardStyle?>(null, CardStyle.FLAT, CardStyle.GRADIENT), card.style,
+                            { it?.label ?: "Varsayılan" }, { onChange(card.copy(style = it)) },
+                        )
                     }
-                } }
+                    ChoiceRow("Yazı rengi") {
+                        Segmented(InkMode.entries, card.ink, { it.label }, { onChange(card.copy(ink = it)) })
+                    }
+                }
                 1 -> {
                     val pkg = card.payment?.packageName
                     val faces = CardCatalog.all.filter { pkg == null || pkg.contains(it.packageHint, ignoreCase = true) }
@@ -123,6 +121,10 @@ fun AppearancePicker(card: WaultCard, onChange: (WaultCard) -> Unit) {
                 }
             }
         }
+    }
+    if (sheet) {
+        val art = rememberCardArt(card)
+        ColorSheet(current = art.base, onPick = { onChange(card.withCustomColor(it)) }, onDone = { sheet = false })
     }
     photo?.let { bitmap ->
         PhotoCrop(bitmap, onCancel = { photo = null }, onConfirm = { cropped ->

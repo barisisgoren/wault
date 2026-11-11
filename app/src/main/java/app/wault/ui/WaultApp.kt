@@ -77,6 +77,10 @@ fun WaultApp(activity: MainActivity) {
     var screen by remember { mutableStateOf<Screen>(Screen.Stack) }
     var selectedId by remember { mutableStateOf<String?>(null) }
     var adding by remember { mutableStateOf(false) }
+    // Seçili kart silindiyse ya da kasa yeniden okunduysa yığın "seçili" modda takılı kalmasın
+    LaunchedEffect(cards, loaded, selectedId) {
+        if (loaded && selectedId != null && cards.none { it.id == selectedId }) selectedId = null
+    }
     var paid by remember { mutableStateOf<PaidEvent?>(null) }
 
     // Kutucuktan açılış: varsayılan kartı seç

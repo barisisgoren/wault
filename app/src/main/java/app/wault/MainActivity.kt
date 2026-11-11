@@ -1,5 +1,11 @@
 package app.wault
 
+import app.wault.design.Appearance
+import app.wault.data.ThemeMode
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.DisposableEffect
+import androidx.activity.SystemBarStyle
 import android.content.Intent
 import android.os.Bundle
 import android.os.SystemClock
@@ -37,7 +43,22 @@ class MainActivity : FragmentActivity() {
         locked.value = app.container.prefs.state.value.biometricLock
         handle(intent)
         setContent {
-            WaultTheme(dark = (if (BuildConfig.DEBUG) DevOptions.darkOverride else null) ?: isSystemInDarkTheme()) {
+            val prefs by app.container.prefs.state.collectAsState()
+            val systemDark = isSystemInDarkTheme()
+            val dark = (if (BuildConfig.DEBUG) DevOptions.darkOverride else null) ?: when (prefs.themeMode) {
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
+                ThemeMode.SYSTEM -> systemDark
+            }
+            // Durum ve gezinme çubuğu simgeleri sistem temasına değil uygulamanın temasına uysun
+            DisposableEffect(dark) {
+                enableEdgeToEdge(
+                    statusBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT) { dark },
+                    navigationBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT) { dark },
+                )
+                onDispose { }
+            }
+            WaultTheme(dark, prefs.accent, Appearance(prefs.cardStyle, prefs.lightEffects)) {
                 WaultApp(this)
             }
         }
@@ -72,7 +93,7 @@ class MainActivity : FragmentActivity() {
     override fun onResume() {
         super.onResume()
         app.isForeground = true
-        Tilt.start(this)
+        if (app.container.prefs.state.value.lightEffects) Tilt.start(this)
         nfc.onResume()
         val away = SystemClock.elapsedRealtime() - pausedAt
         if (pausedAt != 0L && away > LOCK_AFTER_MS && app.container.prefs.state.value.biometricLock) locked.value = true

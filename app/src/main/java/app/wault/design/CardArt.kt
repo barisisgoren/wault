@@ -6,56 +6,84 @@ import android.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import app.wault.data.CardKind
+import app.wault.data.InkMode
 
 /**
- * Kart yüzü: Apple Wallet gibi gerçek bir kart hissi veren renk geçişleri.
- * Her görsel iki durak renk + köşede ikinci bir ışık lekesi olarak çizilir (CardSurface).
+ * Kartın rengi. Varsayılan yüzey düz tek renktir (base); gradyan stilinde aynı renkten
+ * türetilen açık ve koyu tonlar kullanılır, yani her renk iki stilde de çalışır.
  */
 data class CardArt(
     val id: String,
     val name: String,
-    val stops: List<Color>,
-    /** true: koyu kart, üstüne açık metin. false: açık kart, koyu metin. */
-    val dark: Boolean,
-    /** ışık yansımasının tonu */
-    val sheen: Color = Color.White,
-    /** Köşede ikinci bir renk lekesi: düz gradyan yerine mesh gradyan hissi verir. */
-    val glow: Color = stops.last(),
+    val base: Color,
+    /** true: beyaz yazı, false: koyu yazı. Varsayılan olarak zeminin parlaklığından seçilir. */
+    val lightInk: Boolean = prefersLightInk(base),
 ) {
-    val ink: Color get() = if (dark) Color(0xFFFFFFFF) else Color(0xFF17181C)
-    val inkSoft: Color get() = if (dark) Color(0xFFFFFFFF).copy(alpha = 0.74f) else Color(0xFF17181C).copy(alpha = 0.62f)
+    /** Eski adı: koyu/orta tonlu kart, üstüne beyaz yazı. */
+    val dark: Boolean get() = lightInk
+
+    val ink: Color get() = if (lightInk) Color.White else Color(0xFF17181C)
+    val inkSoft: Color get() = if (lightInk) Color.White.copy(alpha = 0.74f) else Color(0xFF17181C).copy(alpha = 0.62f)
+
+    // Gradyan stili için türetilen tonlar
+    val top: Color get() = lerp(base, Color.White, if (lightInk) 0.18f else 0.55f)
+    val bottom: Color get() = lerp(base, Color.Black, if (lightInk) 0.32f else 0.10f)
+    val glow: Color get() = base.toHsv().let { hsvColor(it.h + 28f, (it.s * 0.75f).coerceAtLeast(0.35f), 1f) }
+    val stops: List<Color> get() = listOf(top, bottom)
+
+    fun withInk(mode: InkMode): CardArt = when (mode) {
+        InkMode.AUTO -> this
+        InkMode.LIGHT -> copy(lightInk = true)
+        InkMode.DARK -> copy(lightInk = false)
+    }
 
     /**
      * Kartın renginden türeyen, arayüz zemini üzerinde okunur bir vurgu (halka, ışık).
      * Koyu temada kartın parlak tonu, açık temada daha koyu ve doygun tonu.
      */
     fun accentOn(darkTheme: Boolean): Color = when {
-        darkTheme && dark -> lerp(stops.first(), Color.White, 0.3f)
-        darkTheme -> stops.last()
-        dark -> stops.first()
-        else -> lerp(stops.last(), Color.Black, 0.28f)
+        darkTheme && lightInk -> lerp(base, Color.White, 0.25f)
+        darkTheme -> base
+        lightInk -> base
+        else -> lerp(base, Color.Black, 0.3f)
     }
 }
 
 object CardArts {
-    val all: List<CardArt> = listOf(
-        CardArt("auto", "Uygulama rengi", listOf(Color(0xFF536884), Color(0xFF26374D)), true),
-        CardArt("midnight", "Gece", listOf(Color(0xFF34373E), Color(0xFF14151A)), dark = true, glow = Color(0xFF3B5BA8)),
-        CardArt("graphite", "Grafit", listOf(Color(0xFF565B66), Color(0xFF22252B)), dark = true, glow = Color(0xFF7E92C0)),
-        CardArt("ocean", "Okyanus", listOf(Color(0xFF3478F6), Color(0xFF1B3CB0)), dark = true, glow = Color(0xFF8B5CFF)),
-        CardArt("indigo", "Çivit", listOf(Color(0xFF5B52E6), Color(0xFF231C78)), dark = true, glow = Color(0xFF4FC3F7)),
-        CardArt("teal", "Turkuaz", listOf(Color(0xFF14B3A0), Color(0xFF0A5568)), dark = true, glow = Color(0xFF3FE0A0)),
-        CardArt("forest", "Orman", listOf(Color(0xFF2F9168), Color(0xFF123F2E)), dark = true, glow = Color(0xFFA6E36E)),
-        CardArt("plum", "Mürdüm", listOf(Color(0xFF8250D0), Color(0xFF3B1F70)), dark = true, glow = Color(0xFFFF6FA5)),
-        CardArt("sunset", "Gün batımı", listOf(Color(0xFFFF8A5B), Color(0xFFE8505B)), dark = true, glow = Color(0xFFFFC857)),
-        CardArt("crimson", "Bordo", listOf(Color(0xFFC23A45), Color(0xFF62121F)), dark = true, glow = Color(0xFFFF7A45)),
-        CardArt("gold", "Altın", listOf(Color(0xFFEFCB70), Color(0xFFC9962F)), dark = false, glow = Color(0xFFFFF0B8)),
-        CardArt("rose", "Pudra", listOf(Color(0xFFF8D6DC), Color(0xFFE8A9BC)), dark = false, glow = Color(0xFFC9B8FF)),
-        CardArt("silver", "Gümüş", listOf(Color(0xFFE9EBEF), Color(0xFFC3C7CF)), dark = false, glow = Color(0xFFB5D3FF)),
-        CardArt("ivory", "Fildişi", listOf(Color(0xFFFBFAF6), Color(0xFFE7E4DA)), dark = false, glow = Color(0xFFFFE2B8)),
+    /** Ödeme uygulamasının ikonundan çıkarılan renk; gerçek değer fromIcon ile bulunur. */
+    val auto = CardArt("auto", "Uygulama rengi", Color(0xFF536884))
+
+    /** Kullanıcının seçtiği renk; gerçek değer kartın customColor alanındadır. */
+    val custom = CardArt("custom", "Özel", Color(0xFF536884))
+
+    /** Düz renk paleti. Kimlikler eski gradyan görsellerle aynı; kayıtlı kartlar bozulmaz. */
+    val presets: List<CardArt> = listOf(
+        CardArt("ink", "Siyah", Color(0xFF121316)),
+        CardArt("midnight", "Gece", Color(0xFF262A33)),
+        CardArt("graphite", "Grafit", Color(0xFF474D5A)),
+        CardArt("silver", "Gümüş", Color(0xFFD6DAE1)),
+        CardArt("ivory", "Fildişi", Color(0xFFF2EFE5)),
+        CardArt("white", "Beyaz", Color(0xFFFFFFFF)),
+        CardArt("rose", "Pudra", Color(0xFFF2C4CE)),
+        CardArt("pink", "Pembe", Color(0xFFE2467C)),
+        CardArt("red", "Kırmızı", Color(0xFFE4474D)),
+        CardArt("crimson", "Bordo", Color(0xFFA3283A)),
+        CardArt("sunset", "Mercan", Color(0xFFEC6740)),
+        CardArt("gold", "Altın", Color(0xFFEDB93C)),
+        CardArt("olive", "Zeytin", Color(0xFF7A8A3A)),
+        CardArt("forest", "Orman", Color(0xFF2D8F66)),
+        CardArt("teal", "Turkuaz", Color(0xFF119E9A)),
+        CardArt("mint", "Nane", Color(0xFFA7E3C6)),
+        CardArt("sky", "Gök", Color(0xFF2C96D8)),
+        CardArt("ocean", "Okyanus", Color(0xFF2F6BE0)),
+        CardArt("indigo", "Çivit", Color(0xFF4B46D4)),
+        CardArt("plum", "Mürdüm", Color(0xFF7B4CCB)),
+        CardArt("brown", "Kahve", Color(0xFF7A5648)),
     )
 
-    val default: CardArt get() = all.first { it.id == "midnight" }
+    val all: List<CardArt> = listOf(auto) + presets
+
+    val default: CardArt get() = byId("midnight")
 
     /** Aynı uygulama için ikon taraması bir kez yapılır. */
     private val iconCache = HashMap<String, CardArt>()
@@ -104,22 +132,9 @@ object CardArts {
         }
         if (best < 0 || count[best] < 24f || weight[best] <= 0f) return null
         val hue = hueSum[best] / weight[best]
-        val sat = (satSum[best] / weight[best]).coerceIn(0.52f, 0.92f)
-        val value = valSum[best] / weight[best]
-
-        fun hsv(h: Float, s: Float, v: Float) = Color(android.graphics.Color.HSVToColor(floatArrayOf((h + 360f) % 360f, s.coerceIn(0f, 1f), v.coerceIn(0f, 1f))))
-
-        // sarı-turuncu gibi açık markalar açık kart + koyu yazı olur
-        val light = hue in 34f..68f && value > 0.7f
-        return if (light) {
-            val top = hsv(hue, sat * 0.62f, 1f)
-            val bottom = hsv(hue - 4f, sat * 0.95f, 0.86f)
-            CardArt("auto", "Uygulama rengi", listOf(top, bottom), dark = false, glow = hsv(hue + 26f, 0.35f, 1f))
-        } else {
-            val top = hsv(hue, sat * 0.92f, (value * 0.9f).coerceIn(0.62f, 0.86f))
-            val bottom = hsv(hue + 8f, (sat * 1.05f), 0.36f)
-            CardArt("auto", "Uygulama rengi", listOf(top, bottom), dark = true, glow = hsv(hue + 30f, 0.62f, 1f))
-        }
+        val sat = (satSum[best] / weight[best]).coerceIn(0.55f, 0.92f)
+        val value = (valSum[best] / weight[best]).coerceIn(0.5f, 0.92f)
+        return CardArt("auto", "Uygulama rengi", hsvColor(hue, sat, value))
     }
 
     /** Yeni kartın başlangıç görseli: türüne göre canlı bir renk. */
@@ -131,5 +146,9 @@ object CardArts {
         CardKind.NFC_COPY -> "graphite"
     }
 
-    fun byId(id: String?): CardArt = all.firstOrNull { it.id == id } ?: default
+    fun byId(id: String?): CardArt = when (id) {
+        "auto" -> auto
+        "custom" -> custom
+        else -> presets.firstOrNull { it.id == id } ?: presets.first { it.id == "midnight" }
+    }
 }

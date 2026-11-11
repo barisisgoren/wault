@@ -342,3 +342,13 @@ fun <T> Segmented(options: List<T>, selected: T, label: (T) -> String, onSelect:
 fun CheckMark(checked: Boolean) {
     if (checked) GlyphIcon(Glyph.CHECK, Wault.colors.accent, size = 20.dp) else Spacer(Modifier.size(20.dp))
 }
+
+/** Gruplu listede başlığı üstte, seçim kontrolü altta olan satır (tema, stil, renk gibi seçimler için). */
+@Composable
+fun ChoiceRow(title: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Column(modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Text(title, style = WaultType.footnote, color = Wault.colors.secondary)
+        Spacer(Modifier.height(8.dp))
+        content()
+    }
+}

@@ -9,7 +9,7 @@ object CardCodec {
     fun encode(cards: List<WaultCard>): String {
         val arr = JSONArray()
         cards.forEach { arr.put(encodeCard(it)) }
-        return JSONObject().put("v", 3).put("cards", arr).toString()
+        return JSONObject().put("v", 4).put("cards", arr).toString()
     }
 
     fun decode(json: String): List<WaultCard> {
@@ -25,6 +25,9 @@ object CardCodec {
         put("title", c.title)
         put("subtitle", c.subtitle)
         put("artId", c.artId)
+        c.customColor?.let { put("customColor", it) }
+        c.style?.let { put("style", it.name) }
+        if (c.ink != InkMode.AUTO) put("ink", c.ink.name)
         put("faceSource", c.faceSource.name)
         c.faceRef?.let { put("faceRef", it) }
         put("network", c.network.name)
@@ -77,6 +80,9 @@ object CardCodec {
             title = o.optString("title"),
             subtitle = o.optString("subtitle"),
             artId = o.optString("artId").ifEmpty { legacyArt(o.optJSONObject("face")?.optLong("base", 0L) ?: 0L) },
+            customColor = if (o.has("customColor")) o.optLong("customColor") else null,
+            style = runCatching { CardStyle.valueOf(o.optString("style")) }.getOrNull(),
+            ink = runCatching { InkMode.valueOf(o.optString("ink")) }.getOrDefault(InkMode.AUTO),
             faceSource = runCatching { FaceSource.valueOf(o.optString("faceSource")) }.getOrDefault(FaceSource.THEME),
             faceRef = o.optString("faceRef").takeIf { it.isNotBlank() && it != "null" },
             network = runCatching { CardNetwork.valueOf(o.optString("network")) }.getOrDefault(CardNetwork.NONE),

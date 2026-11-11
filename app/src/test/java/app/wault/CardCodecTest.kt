@@ -3,6 +3,8 @@ package app.wault
 import app.wault.data.CardCodec
 import app.wault.data.CardKind
 import app.wault.data.CardNetwork
+import app.wault.data.CardStyle
+import app.wault.data.InkMode
 import app.wault.data.CodeFormat
 import app.wault.data.DemoCards
 import app.wault.data.FaceSource
@@ -12,6 +14,8 @@ import app.wault.data.PaymentLink
 import app.wault.data.WaultCard
 import app.wault.ui.code.canEncode
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -29,6 +33,8 @@ class CardCodecTest {
         WaultCard(kind = CardKind.NFC_COPY, title = "Kapı", artId = "graphite", nfc = NfcCopy("04A2193B", listOf("NfcA", "MifareClassic"), null, NfcCapability.RECORD_ONLY)),
         WaultCard(kind = CardKind.PAYMENT, title = "Foto", faceSource = FaceSource.CUSTOM, faceRef = "0b7e6f4a-1c22-4f3a-9d1e-2a7f5c1d9e10.bin"),
         WaultCard(kind = CardKind.PAYMENT, title = "Model", faceSource = FaceSource.CATALOG, faceRef = "world"),
+        WaultCard(kind = CardKind.LOYALTY, title = "Özel", artId = "custom", customColor = 0xFFEC6740L, style = CardStyle.GRADIENT, ink = InkMode.DARK),
+        WaultCard(kind = CardKind.CODE, title = "Düz", artId = "ocean", style = CardStyle.FLAT),
     )
 
     @Test fun roundTripKeepsEverything() {
@@ -42,6 +48,26 @@ class CardCodecTest {
         assertEquals(FaceSource.THEME, card.faceSource)
         assertEquals(null, card.faceRef)
         assertEquals("ocean", card.artId)
+    }
+
+    @Test fun personalisationFieldsSurviveAndDefaultsStayOut() {
+        val custom = CardCodec.decode(CardCodec.encode(cards)).first { it.title == "Özel" }
+        assertEquals(0xFFEC6740L, custom.customColor)
+        assertEquals(CardStyle.GRADIENT, custom.style)
+        assertEquals(InkMode.DARK, custom.ink)
+        // Varsayılanlar (uygulama stili, otomatik yazı rengi) dosyaya yazılmaz: dosya küçük kalır, genel stil değişince izler
+        val json = CardCodec.encode(listOf(WaultCard(kind = CardKind.CODE, title = "X", artId = "ocean")))
+        assertFalse("style" in json)
+        assertFalse("ink" in json)
+        assertFalse("customColor" in json)
+        assertNull(CardCodec.decode(json).single().style)
+    }
+
+    @Test fun unknownStyleOrInkFallBackToDefaults() {
+        val json = """{"v":4,"cards":[{"id":"a","kind":"CODE","title":"x","style":"HOLOGRAM","ink":"NEON"}]}"""
+        val card = CardCodec.decode(json).single()
+        assertNull(card.style)
+        assertEquals(InkMode.AUTO, card.ink)
     }
 
     @Test fun brokenCardIsSkippedNotFatal() {

@@ -32,6 +32,12 @@ android {
         compose = true
         buildConfig = true
     }
+    testOptions {
+        unitTests {
+            // Robolectric: kaynaklar (yazı tipleri, ikonlar) testte de yüklensin
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 dependencies {
@@ -57,6 +63,15 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation(libs.junit)
     testImplementation("org.json:json:20240303")
+    // Arayüz testleri telefonsuz, bilgisayarda çalışır (Robolectric + Compose testleri)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.androidx.test.ext.junit)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
 
 // Windows kullanıcı klasörü ASCII dışı karakter içerdiğinde JDK'nın yerel soket dosyaları
@@ -64,4 +79,6 @@ dependencies {
 tasks.withType<Test>().configureEach {
     val tmp = rootProject.layout.projectDirectory.dir(".tmp").asFile
     jvmArgs("-Djdk.net.unixdomain.tmpdir=${tmp.absolutePath}", "-Djava.io.tmpdir=${tmp.absolutePath}")
+    // Roborazzi: ekran görüntülerini her çalıştırmada app/build/test-screenshots altına yaz
+    systemProperty("roborazzi.test.record", "true")
 }
