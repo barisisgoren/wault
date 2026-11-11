@@ -454,11 +454,17 @@ private fun Stage(
                     val motion = st.slot(card.id, i)
                     val liveIdx = (st.liveOrder ?: order).indexOf(card.id).coerceAtLeast(0)
 
+                    // Bırakılan kart yerine yumuşakça süzülür; komşular daha çevik kayar
+                    var justDropped by remember { mutableStateOf(false) }
                     LaunchedEffect(liveIdx, isDragged) {
-                        if (!isDragged) {
-                            val spec: AnimationSpec<Float> = if (reduced) snap() else spring(dampingRatio = 0.8f, stiffness = 380f)
-                            animate(motion.value, liveIdx.toFloat(), 0f, spec) { v, _ -> motion.value = v }
+                        if (isDragged) { justDropped = true; return@LaunchedEffect }
+                        val spec: AnimationSpec<Float> = when {
+                            reduced -> snap()
+                            justDropped -> spring(dampingRatio = 0.82f, stiffness = 150f)
+                            else -> spring(dampingRatio = 0.8f, stiffness = 380f)
                         }
+                        animate(motion.value, liveIdx.toFloat(), 0f, spec) { v, _ -> motion.value = v }
+                        justDropped = false
                     }
 
                     val rank = if (isAnchor) 0 else kotlin.math.abs((orderIdx[card.id] ?: 0) - (orderIdx[anchor] ?: 0))
@@ -485,7 +491,7 @@ private fun Stage(
 
                     val tapLabel = if (selectedId == null) "Kartı aç" else if (isSel) null else "Kartları göster"
                     // Sürüklerken kaldırılan kart: ölçek ve gölge yumuşakça artar, bırakınca yumuşakça iner
-                    val lift by animateFloatAsState(if (isDragged) 1f else 0f, spring(dampingRatio = 0.7f, stiffness = 500f), label = "lift")
+                    val lift by animateFloatAsState(if (isDragged) 1f else 0f, spring(dampingRatio = 0.75f, stiffness = 260f), label = "lift")
                     val raised = isAnchor || isDragged || lift > 0.02f
                     val press = remember { MutableInteractionSource() }
                     val pressed by press.collectIsPressedAsState()
