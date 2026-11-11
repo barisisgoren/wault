@@ -149,15 +149,14 @@ class StackGestureTest {
 
     private val store get() = (rule.activity.application as WaultApplication).container.store
 
-    @Test fun pullingACardUpSelectsIt() {
+    @Test fun pullingACardUpDoesNotOpenIt() {
         rule.waitUntil(5_000) { rule.onAllNodes(hasText("Akbank")).fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithText("Akbank").performTouchInput {
             val start = Offset(centerX, 30.dp.toPx())
             swipe(start, Offset(centerX, start.y - 260.dp.toPx()), durationMillis = 350)
         }
-        rule.waitUntil(5_000) { rule.onAllNodes(hasText("Bitti")).fetchSemanticsNodes().isNotEmpty() }
-        rule.onNodeWithText("Bitti").assertIsDisplayed()
-        rule.onRoot().captureRoboImage(Shots.path("flow_pull_selected"))
+        rule.waitForIdle()
+        assertEquals(0, rule.onAllNodes(hasText("Bitti")).fetchSemanticsNodes().size)
     }
 
     @Test fun holdingAndDraggingAcardReordersTheStack() {

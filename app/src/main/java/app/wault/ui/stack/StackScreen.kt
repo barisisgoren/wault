@@ -489,8 +489,8 @@ private fun Stage(
                     val press = remember { MutableInteractionSource() }
                     val pressed by press.collectIsPressedAsState()
                     val pressScale by animateFloatAsState(if (pressed && st.dragId == null) 0.985f else 1f, spring(stiffness = 900f), label = "press")
-                    val pullUp = selectedId == null && maxScroll <= 0f && st.dragId == null
-                    val pullDown = isSel
+                    val pullUp = false // yukarı çekmek ödemeye geçmez: yalnızca dokunmak açar, sürüklemek sıralar
+                    val pullDown = false
 
                     Box(
                         Modifier
