@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.DisposableEffect
@@ -465,20 +466,10 @@ private fun Stage(
         }
         val flipPerPx = 180f / cardW
 
-        val scrollEnabled = selectedId == null && maxScroll > 0f
         val detailShown by remember { derivedStateOf { st.sel > 0.55f } }
         val collapsedAtRest by remember { derivedStateOf { st.sel < 0.02f } }
 
-        Box(
-            Modifier
-                .fillMaxSize()
-                .draggable(
-                    orientation = Orientation.Vertical,
-                    enabled = scrollEnabled,
-                    state = rememberDraggableState { dy -> st.scrollBy(-dy, maxScroll, overshoot) },
-                    onDragStarted = { st.scrollJob?.cancel() },
-                    onDragStopped = { v -> st.scrollJob = scope.launch { flingScroll(st, -v, maxScroll) } },
-                )
+        Box(Modifier.fillMaxSize()
         ) {
             cards.forEachIndexed { i, card ->
                 androidx.compose.runtime.key(card.id) {
@@ -597,31 +588,18 @@ private fun Stage(
                             )
                             .pointerInput(card.id, selectedId == null, n, peek, maxScroll, order) {
                                 if (selectedId != null) return@pointerInput
-                                if (maxScroll <= 0f) {
-                                    // Apple Wallet gibi: kart sığıyorsa yukarı/aşağı sürüklemek doğrudan sırayı değiştirir
-                                    detectVerticalDragGestures(
-                                        onDragStart = { offset -> startReorder(card.id, offset.y) },
-                                        onVerticalDrag = { change, amount ->
-                                            change.consume()
-                                            st.dragTop += amount
-                                            updateTarget()
-                                        },
-                                        onDragEnd = { endReorder(card.id, cancelled = false) },
-                                        onDragCancel = { endReorder(card.id, cancelled = true) },
-                                    )
-                                } else {
-                                    // Kartlar ekrana sığmıyorsa sürükleme yığını kaydırır; sıralamak için basılı tutulur
-                                    detectDragGesturesAfterLongPress(
-                                        onDragStart = { offset -> startReorder(card.id, offset.y) },
-                                        onDrag = { change, amount ->
-                                            change.consume()
-                                            st.dragTop += amount.y
-                                            updateTarget()
-                                        },
-                                        onDragEnd = { endReorder(card.id, cancelled = false) },
-                                        onDragCancel = { endReorder(card.id, cancelled = true) },
-                                    )
-                                }
+                                // Apple Wallet gibi: yukarı/aşağı sürüklemek doğrudan sırayı değiştirir. Kart çoksa kenara
+                                // yaklaşınca yığın kendiliğinden kayar; sayfayı kaydırmak için sağ kenardaki çubuk kullanılır.
+                                detectVerticalDragGestures(
+                                    onDragStart = { offset -> startReorder(card.id, offset.y) },
+                                    onVerticalDrag = { change, amount ->
+                                        change.consume()
+                                        st.dragTop += amount
+                                        updateTarget()
+                                    },
+                                    onDragEnd = { endReorder(card.id, cancelled = false) },
+                                    onDragCancel = { endReorder(card.id, cancelled = true) },
+                                )
                             }
                     ) {
                         if (isAnchor && kotlin.math.abs(flipAngle) > 90f) {
@@ -643,6 +621,36 @@ private fun Stage(
                             showFace = (selectedId == null && collapsedAtRest) || isAnchor || isDragged,
                         )
                     }
+                }
+            }
+
+            // Kaydırma çubuğu: kart çoksa sağ kenarda görünür; tutup sürükleyince yığın kayar
+            if (maxScroll > 0f && selectedId == null) {
+                val thumbH = max(viewportH * viewportH / contentH, with(density) { 56.dp.toPx() })
+                val travel = max(viewportH - thumbH, 1f)
+                val railColor = Wault.colors.secondary
+                Box(
+                    Modifier
+                        .align(Alignment.CenterEnd)
+                        .fillMaxHeight()
+                        .width(24.dp)
+                        .zIndex(4000f)
+                        .draggable(
+                            orientation = Orientation.Vertical,
+                            state = rememberDraggableState { dy -> st.scrollBy(dy * maxScroll / travel, maxScroll, 0f) },
+                            onDragStarted = { st.scrollJob?.cancel() },
+                        ),
+                ) {
+                    Box(
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .offset { IntOffset(0, (st.scroll.coerceIn(0f, maxScroll) / maxScroll * travel).roundToInt()) }
+                            .padding(end = 5.dp)
+                            .width(4.dp)
+                            .height(with(density) { thumbH.toDp() })
+                            .clip(CircleShape)
+                            .background(railColor.copy(alpha = 0.5f))
+                    )
                 }
             }
 

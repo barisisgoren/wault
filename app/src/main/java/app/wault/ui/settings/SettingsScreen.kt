@@ -182,7 +182,7 @@ fun SettingsScreen(
             var recolored by remember { mutableStateOf(false) }
             Group(
                 header = "Kartlar",
-                footer = "Kartları ana ekranda yukarı ya da aşağı sürükleyerek de sıralayabilirsin (çok kart varsa basılı tutup sürükle). " +
+                footer = "Kartları ana ekranda yukarı ya da aşağı sürükleyerek de sıralayabilirsin. Kart çoksa sağ kenardaki çubukla kaydırırsın. " +
                     "Renk yenileme ödeme kartlarını bağlı uygulamanın rengine boyar; fotoğraf ve hazır modeller değişmez.",
             ) {
                 GroupRow("Kartları sırala", leading = { IconTile(Glyph.HANDLE, Color(0xFFFF9F0A)) }, chevron = true, onClick = onReorder)
