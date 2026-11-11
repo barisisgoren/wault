@@ -23,6 +23,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -131,7 +132,9 @@ private class StackState(selected: String?) {
     var sel by mutableFloatStateOf(if (selected != null) 1f else 0f)
     var anchor by mutableStateOf(selected)
     var pulling by mutableStateOf(false)
-    var flipped by mutableStateOf(false)
+    /** Kartın Y ekseninde dönüşü (derece): 0 ön yüz, ±180 arka yüz; parmak ne kadar çekerse o kadar döner. */
+    var flipAngle by mutableFloatStateOf(0f)
+    var flipJob: Job? = null
     var revealed by mutableStateOf(false)
     var pullTotal = 0f
     var pullDist = 1f
@@ -316,7 +319,8 @@ private fun Stage(
     BoxWithConstraints(Modifier.fillMaxSize().clipToBounds()) {
         val viewportH = constraints.maxHeight.toFloat()
         val gutter = with(density) { Gutter.toPx() }
-        val cardH = (constraints.maxWidth - 2 * gutter) / CARD_RATIO
+        val cardW = constraints.maxWidth - 2 * gutter
+        val cardH = cardW / CARD_RATIO
         val topPad = with(density) { TopPad.toPx() }
         val navInset = WindowInsets.navigationBars.getBottom(density).toFloat()
         val dockSpace = navInset + with(density) { (DockHeight + DockGap * 2).toPx() }
@@ -342,7 +346,7 @@ private fun Stage(
         val detailTop = topPad + cardH + with(density) { 22.dp.toPx() }
         val detailHeight = with(density) { (viewportH - navInset - detailTop - 12.dp.toPx()).coerceAtLeast(160.dp.toPx()).toDp() }
 
-        LaunchedEffect(selectedId) { st.flipped = false; st.revealed = false }
+        LaunchedEffect(selectedId) { st.flipJob?.cancel(); st.flipAngle = 0f; st.revealed = false }
         // Kart bilgileri bir süre sonra kendiliğinden gizlenir
         LaunchedEffect(st.revealed) { if (st.revealed) { kotlinx.coroutines.delay(30_000); st.revealed = false } }
         // Ödeme adımında ekran açık kalır
@@ -450,6 +454,16 @@ private fun Stage(
             }
         }
 
+        // Kartı çevirme: parmağı izler, bırakınca en yakın yüze yaylanır
+        fun settleFlip(target: Float, velocity: Float) {
+            st.flipJob?.cancel()
+            st.flipJob = scope.launch {
+                animate(st.flipAngle, target, velocity, if (reduced) snap() else spring(dampingRatio = 0.82f, stiffness = 190f)) { v, _ -> st.flipAngle = v }
+                if (target == 0f) st.revealed = false
+            }
+        }
+        val flipPerPx = 180f / cardW
+
         val scrollEnabled = selectedId == null && maxScroll > 0f
         val detailShown by remember { derivedStateOf { st.sel > 0.55f } }
         val collapsedAtRest by remember { derivedStateOf { st.sel < 0.02f } }
@@ -515,7 +529,7 @@ private fun Stage(
                     val press = remember { MutableInteractionSource() }
                     val pressed by press.collectIsPressedAsState()
                     val pressScale by animateFloatAsState(if (pressed && st.dragId == null) 0.985f else 1f, spring(stiffness = 900f), label = "press")
-                    val flipAngle by animateFloatAsState(if (isSel && st.flipped) 180f else 0f, spring(dampingRatio = 0.85f, stiffness = 170f), label = "flip")
+                    val flipAngle = if (isAnchor) st.flipAngle else 0f
                     val pullUp = false // yukarı çekmek ödemeye geçmez: yalnızca dokunmak açar, sürüklemek sıralar
                     val pullDown = false
 
@@ -524,6 +538,26 @@ private fun Stage(
                             .zIndex(if (isAnchor) 1000f else if (raised) 900f else i.toFloat())
                             .padding(horizontal = Gutter)
                             .offset { IntOffset(0, yNow().roundToInt()) }
+                            // Dönmeyen katmanda dinlenir: kart dönerken yerel koordinatlar aynalanmasın
+                            .pointerInput(isSel, cardW) {
+                                if (!isSel) return@pointerInput
+                                var velocityTracker = androidx.compose.ui.input.pointer.util.VelocityTracker()
+                                detectHorizontalDragGestures(
+                                    onDragStart = { st.flipJob?.cancel(); velocityTracker = androidx.compose.ui.input.pointer.util.VelocityTracker() },
+                                    onHorizontalDrag = { change, dx ->
+                                        change.consume()
+                                        velocityTracker.addPosition(change.uptimeMillis, change.position)
+                                        st.flipAngle = (st.flipAngle + dx * flipPerPx).coerceIn(-180f, 180f)
+                                    },
+                                    onDragEnd = {
+                                        val v = velocityTracker.calculateVelocity().x * flipPerPx
+                                        val projected = st.flipAngle + v * 0.12f
+                                        val target = when { projected > 90f -> 180f; projected < -90f -> -180f; else -> 0f }
+                                        settleFlip(target, v)
+                                    },
+                                    onDragCancel = { settleFlip(if (kotlin.math.abs(st.flipAngle) > 90f) 180f * kotlin.math.sign(st.flipAngle) else 0f, 0f) },
+                                )
+                            }
                             .graphicsLayer {
                                 val p = progress()
                                 val target = if (isAnchor) 1f else 0.95f
@@ -551,7 +585,7 @@ private fun Stage(
                                 onClickLabel = tapLabel,
                             ) {
                                 haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                if (selectedId == null) { if (st.sel < 0.02f) onSelect(card.id) } else if (isSel) st.flipped = !st.flipped else onSelect(null)
+                                if (selectedId == null) { if (st.sel < 0.02f) onSelect(card.id) } else if (isSel) settleFlip(if (kotlin.math.abs(st.flipAngle) > 90f) 0f else 180f, 0f) else onSelect(null)
                             }
                             .draggable(
                                 orientation = Orientation.Vertical,
@@ -589,7 +623,7 @@ private fun Stage(
                                 }
                             }
                     ) {
-                        if (isAnchor && flipAngle > 90f) {
+                        if (isAnchor && kotlin.math.abs(flipAngle) > 90f) {
                             CardBack(
                                 card, revealed = st.revealed,
                                 onEdit = { onEdit(card) },
