@@ -15,9 +15,10 @@
 
   // Sahne düzenleri (sahne koordinatları). Dar ekranda cihazlar üstte, telefon altta;
   // durum yazıları sahnenin dışına taşınır ki küçülmesin. minX: soldaki Çevir tuşu sahnede kalsın.
+  // Dar ekranda cihazlar dikey sıralanır: barkod okuyucu üstte, POS ortada, telefon altta.
   const LAYOUTS = {
-    wide: { w: 1100, h: 700, scanner: [24, 120, 1], pos: [846, 150, 1], phone: [575, 330], minX: 205 },
-    narrow: { w: 400, h: 830, scanner: [0, 28, 0.52], pos: [282, 80, 0.52], phone: [215, 560], minX: 215 },
+    wide: { w: 1100, h: 700, scanner: [24, 120, 1], pos: [846, 150, 1], phone: [575, 330], minX: 205, minY: 150, maxY: 580 },
+    narrow: { w: 360, h: 1340, scanner: [89, 20, 0.7], pos: [103, 340, 0.7], phone: [180, 900], minX: 128, minY: 150, maxY: 1000 },
   };
   const PHONE_W = 250, PHONE_H = 520;
   const STACK_TOP = 82, STRIP = 44, COLLAPSED_TOP = 448;
@@ -434,8 +435,8 @@
       try { wrap.setPointerCapture(e.pointerId); } catch (_) {}
     }
     e.preventDefault();
-    P.x = clamp(drag.ox + dx, layout.minX, layout.w - 70);
-    P.y = clamp(drag.oy + dy, 150, layout.h - 120);
+    P.x = clamp(drag.ox + dx, layout.minX, layout.w - layout.minX);
+    P.y = clamp(drag.oy + dy, layout.minY, layout.maxY);
     const now = performance.now();
     const v = (e.clientX - drag.lx) / Math.max(1, now - drag.lt);
     drag.v = drag.v * 0.7 + v * 0.3;
@@ -468,8 +469,8 @@
     const moves = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
     if (moves[e.key] && !e.target.closest('.card, button')) {
       e.preventDefault();
-      P.x = clamp(P.x + moves[e.key][0], layout.minX, layout.w - 70);
-      P.y = clamp(P.y + moves[e.key][1], 150, layout.h - 120);
+      P.x = clamp(P.x + moves[e.key][0], layout.minX, layout.w - layout.minX);
+      P.y = clamp(P.y + moves[e.key][1], layout.minY, layout.maxY);
       placePhone(); checkZones();
     }
   });
