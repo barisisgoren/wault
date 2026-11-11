@@ -331,19 +331,19 @@ private fun CodeGroup(
         GroupRow("Görselden seç", leading = { IconTile(Glyph.IMAGE, Color(0xFF30B158)) }, chevron = true,
             onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) })
         Separator()
-        FieldRow("Kod", draft.codeValue,
-            { update(draft.copy(codeValue = it, codeFormat = draft.codeFormat ?: CodeFormat.QR)) },
+        // Biçim seçtirmiyoruz: elle yazılan değerden uygun kod türü kendiliğinden seçilir, taranan kod kendi türünü korur
+        FieldRow(if (required) "Kod" else "Numara", draft.codeValue,
+            { update(draft.copy(codeValue = it, codeFormat = guessFormat(it))) },
             placeholder = if (required) "Gerekli" else "İsteğe bağlı", caps = KeyboardCapitalization.None,
             error = showError || (draft.codeValue.isNotBlank() && !canEncode(draft.codeValue, draft.codeFormat ?: CodeFormat.QR)))
-        Separator()
-        Box(Modifier.padding(10.dp)) {
-            Segmented(
-                CodeFormat.entries, draft.codeFormat ?: CodeFormat.QR,
-                { when (it) { CodeFormat.CODE_128 -> "128"; CodeFormat.EAN_13 -> "EAN"; else -> it.label } },
-                { update(draft.copy(codeFormat = it)) },
-            )
-        }
     }
+}
+
+/** Elle yazılan değere göre en uygun kod türü: 13 haneli geçerli EAN, düz kısa metin için Code 128, gerisi QR. */
+internal fun guessFormat(value: String): CodeFormat = when {
+    value.length == 13 && value.all { it.isDigit() } && canEncode(value, CodeFormat.EAN_13) -> CodeFormat.EAN_13
+    value.length <= 24 && value.all { it.code in 32..126 } && canEncode(value, CodeFormat.CODE_128) -> CodeFormat.CODE_128
+    else -> CodeFormat.QR
 }
 
 private fun formatExpiry(input: String): String {
