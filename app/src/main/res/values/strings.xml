@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Wault</string>
+    <string name="tile_label">Wault</string>
+    <string name="apdu_service_description">Wault kopya kartları</string>
+    <string name="channel_payments">Ödeme onayları</string>
+</resources>
