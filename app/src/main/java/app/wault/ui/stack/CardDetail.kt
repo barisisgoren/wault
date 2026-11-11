@@ -6,6 +6,14 @@ import app.wault.ui.common.QuickColors
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -150,10 +158,35 @@ private fun PaymentDetail(activity: MainActivity, card: WaultCard, env: Environm
 private fun ShowcaseDetail(activity: MainActivity, env: Environment, onEdit: () -> Unit) {
     val prefs by activity.app.container.prefs.state.collectAsState()
     val scope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
     val ready = env.shizuku == ShizukuBridge.State.READY
     val paymentOff = ready && prefs.showcaseTurnsOffPayment
-    if (paymentOff) {
+
+    // Rol oyunu (LARP) gösterimi: vitrin kartı açıkken telefon okuyucu modunda bekler; bir NFC etiketine ya da karta
+    // değince ekranda "Ödendi" çıkar. Okuyucu modunda telefon kart taklidi yapmaz, yani gerçek bir okuyucuya hiçbir şey sunmaz.
+    var paidAt by remember { mutableLongStateOf(0L) }
+    var paid by remember { mutableStateOf(false) }
+    DisposableEffect(Unit) {
+        if (activity.nfc.available) activity.nfc.startReading { _ -> paidAt = System.nanoTime(); paid = true }
+        onDispose { activity.nfc.stopReading() }
+    }
+    LaunchedEffect(paidAt) {
+        if (paid) {
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            delay(3200)
+            paid = false
+        }
+    }
+    if (paid) {
+        PaidPanel()
+    } else if (activity.nfc.enabled) {
+        Status("Rol oyunu modu", "Telefonu bir NFC etiketine ya da karta değdir, ekranda \"Ödendi\" görünür. Gerçek ödeme yapılmaz.")
+    } else if (paymentOff) {
         Status("Ödeme kapalı", "Bu kart seçiliyken telefon okuyucuya hiçbir ödeme uygulaması sunmuyor. Başka bir ödeme kartı seçince ödeme yeniden açılır.")
+    } else {
+        Status("Vitrin kartı", "Bu kart bir ödeme yöntemine bağlı değil. Okuyucuya yaklaştırınca ödeme yapmaz. NFC açılırsa rol oyunu modu çalışır.")
+    }
+    if (paymentOff && !paid) {
         Spacer(Modifier.height(16.dp))
         TintedButton("Ödemeyi geri aç", {
             scope.launch {
@@ -162,11 +195,24 @@ private fun ShowcaseDetail(activity: MainActivity, env: Environment, onEdit: () 
                 if (pkg != null && ShizukuBridge.setWalletHolder(pkg)) activity.resumeTick.intValue++
             }
         }, Modifier.fillMaxWidth())
-    } else {
-        Status("Vitrin kartı", "Bu kart bir ödeme yöntemine bağlı değil. Okuyucuya yaklaştırınca ödeme yapmaz.")
     }
     Spacer(Modifier.height(24.dp))
     Group { GroupRow("Kartı düzenle", chevron = true, onClick = onEdit) }
+}
+
+/** Apple Pay tarzı onay: yeşil daire, işaret, "Ödendi". Etiket, bunun bir oyun gösterimi olduğunu açıkça söyler. */
+@Composable
+private fun PaidPanel() {
+    val c = Wault.colors
+    Column(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.size(84.dp).clip(CircleShape).background(Color(0xFF30B158)), contentAlignment = Alignment.Center) {
+            GlyphIcon(Glyph.CHECK, Color.White, size = 40.dp)
+        }
+        Spacer(Modifier.height(14.dp))
+        Text("Ödendi", style = WaultType.title, color = c.label)
+        Spacer(Modifier.height(4.dp))
+        Text("Rol oyunu gösterimi, gerçek ödeme değil", style = WaultType.subhead, color = c.secondary, textAlign = TextAlign.Center)
+    }
 }
 
 @Composable
