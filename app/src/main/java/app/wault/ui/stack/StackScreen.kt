@@ -23,6 +23,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -534,16 +535,31 @@ private fun Stage(
                             )
                             .pointerInput(card.id, selectedId == null, n, peek, maxScroll, order) {
                                 if (selectedId != null) return@pointerInput
-                                detectDragGesturesAfterLongPress(
-                                    onDragStart = { offset -> startReorder(card.id, offset.y) },
-                                    onDrag = { change, amount ->
-                                        change.consume()
-                                        st.dragTop += amount.y
-                                        updateTarget()
-                                    },
-                                    onDragEnd = { endReorder(card.id, cancelled = false) },
-                                    onDragCancel = { endReorder(card.id, cancelled = true) },
-                                )
+                                if (maxScroll <= 0f) {
+                                    // Apple Wallet gibi: kart sığıyorsa yukarı/aşağı sürüklemek doğrudan sırayı değiştirir
+                                    detectVerticalDragGestures(
+                                        onDragStart = { offset -> startReorder(card.id, offset.y) },
+                                        onVerticalDrag = { change, amount ->
+                                            change.consume()
+                                            st.dragTop += amount
+                                            updateTarget()
+                                        },
+                                        onDragEnd = { endReorder(card.id, cancelled = false) },
+                                        onDragCancel = { endReorder(card.id, cancelled = true) },
+                                    )
+                                } else {
+                                    // Kartlar ekrana sığmıyorsa sürükleme yığını kaydırır; sıralamak için basılı tutulur
+                                    detectDragGesturesAfterLongPress(
+                                        onDragStart = { offset -> startReorder(card.id, offset.y) },
+                                        onDrag = { change, amount ->
+                                            change.consume()
+                                            st.dragTop += amount.y
+                                            updateTarget()
+                                        },
+                                        onDragEnd = { endReorder(card.id, cancelled = false) },
+                                        onDragCancel = { endReorder(card.id, cancelled = true) },
+                                    )
+                                }
                             }
                     ) {
                         CardSurface(
