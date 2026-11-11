@@ -389,7 +389,8 @@ private fun Stage(
 
         fun endReorder(id: String, cancelled: Boolean) {
             if (st.dragId != id) return
-            val slotF = if (n <= 1 || peek <= 0f) 0f else ((st.dragTop + st.scroll - topPad) / peek).coerceIn(0f, (n - 1).toFloat())
+            // Sınırlama yok: kart parmağın bıraktığı yerden başlayıp yerine süzülür (uçlara çekilmişse de ışınlanmaz)
+            val slotF = if (n <= 1 || peek <= 0f) 0f else (st.dragTop + st.scroll - topPad) / peek
             st.slot(id, st.dragOrigin).value = slotF
             val ids = if (cancelled) order else (st.liveOrder ?: order)
             st.dragId = null
