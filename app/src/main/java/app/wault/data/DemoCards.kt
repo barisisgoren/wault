@@ -16,6 +16,23 @@ object DemoCards {
         payment = PaymentLink(pkg, cls, app),
     )
 
+    /** Tanıtım kaydı için: gerçek banka adı ve kart sahibi içermeyen genel örnek kartlar. */
+    fun promo(): List<WaultCard> = listOf(
+        pay("Banka 1", "Platinum", "app.wault.demo.banka1", "app.wault.demo.Hce", "Banka 1", CardNetwork.MASTERCARD, "4417", "", "08/28", "forest"),
+        pay("Banka 2", "Gold", "app.wault.demo.banka2", "app.wault.demo.Hce", "Banka 2", CardNetwork.VISA, "8851", "", "03/29", "crimson"),
+        pay("Banka 3", "Classic", "app.wault.demo.banka3", "app.wault.demo.Hce", "Banka 3", CardNetwork.AMEX, "1007", "", "11/27", "indigo"),
+        pay("Banka 4", "Bankkart", "app.wault.demo.banka4", "app.wault.demo.Hce", "Banka 4", CardNetwork.TROY, "6021", "", "06/28", "teal"),
+        WaultCard(
+            id = "demo-market", kind = CardKind.LOYALTY, title = "Market", subtitle = "Üyelik kartı",
+            artId = "sunset", memberNo = "5300 1182 7741", points = "1.240 puan",
+            codeFormat = CodeFormat.EAN_13, codeValue = ean13("869000000001"),
+        ),
+        WaultCard(
+            id = "demo-ozel", kind = CardKind.SHOWCASE, title = "Özel Kart", subtitle = "Sahte kart",
+            artId = "silver", network = CardNetwork.VISA, last4 = "1234", expiry = "12/29",
+        ),
+    )
+
     /** EAN-13 için kontrol hanesini hesaplar. */
     private fun ean13(first12: String): String {
         val sum = first12.mapIndexed { i, ch -> (ch - '0') * if (i % 2 == 0) 1 else 3 }.sum()

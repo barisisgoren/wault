@@ -78,7 +78,11 @@ class MainActivity : FragmentActivity() {
             intent.getStringExtra("theme")?.let {
                 DevOptions.darkOverride = when (it) { "dark" -> true; "light" -> false; else -> null }
             }
-            if (intent.hasExtra("demo")) {
+            if (intent.getBooleanExtra("demo_promo", false)) {
+                DevOptions.dryRun = true
+                DevOptions.pretended = DevOptions.Pretended("app.wault.demo.banka1")
+                app.container.store.showDemo(DemoCards.promo())
+            } else if (intent.hasExtra("demo")) {
                 if (intent.getBooleanExtra("demo", false)) {
                     DevOptions.dryRun = true
                     DevOptions.pretended = DevOptions.Pretended("com.garanti.cepsubesi")
