@@ -11,14 +11,17 @@
     { id: 'mk', kind: 'loyalty', title: 'Market', sub: 'Üyelik kartı', color: '#EC6740', member: '5300 1182 7741', points: '1.240 puan', code: '8690000000012' },
     { id: 'oz', kind: 'show', title: 'Özel Kart', sub: 'Sahte kart', color: '#D6DAE1', darkInk: true, net: 'visa', last4: '1234', exp: '12/29' },
   ];
-  const AMOUNTS = ['₺248,50', '₺86,90', '₺1.120,00', '₺37,25', '₺512,40', '₺14,99'];
+  // Tutarlar kuruş cinsinden; POS her ödemeden sonra sıradakini önerir, kasiyer tuşlarla değiştirebilir
+  const AMOUNTS = [24850, 8690, 112000, 3725, 51240, 1499];
+  const MAX_DIGITS = 7; // en çok ₺99.999,99
+  const money = k => '₺' + (k / 100).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   // Sahne düzenleri (sahne koordinatları). Dar ekranda cihazlar üstte, telefon altta;
   // durum yazıları sahnenin dışına taşınır ki küçülmesin. minX: soldaki Çevir tuşu sahnede kalsın.
   // Dar ekranda cihazlar dikey sıralanır: barkod okuyucu üstte, telefon ortada, POS altta.
   const LAYOUTS = {
     wide: { w: 1100, h: 700, scanner: [24, 120, 1], pos: [846, 150, 1], phone: [575, 330], minX: 205, minY: 150, maxY: 580 },
-    narrow: { w: 360, h: 1260, scanner: [89, 20, 0.7], pos: [103, 930, 0.7], phone: [180, 630], minX: 128, minY: 150, maxY: 1000 },
+    narrow: { w: 360, h: 1420, scanner: [89, 20, 0.7], pos: [70, 930, 1], phone: [180, 630], minX: 128, minY: 150, maxY: 1000 },
   };
   const PHONE_W = 250, PHONE_H = 520;
   const STACK_TOP = 82, STRIP = 44, COLLAPSED_TOP = 448;
@@ -231,14 +234,16 @@
 
   /* ───────────── POS ───────────── */
   let posBusy = false, posErrTimer;
+  let entry = null; // tuşlarla girilen haneler (kuruş); null: tutar girişi yok
   // title/sub yalnızca 'ok' ve 'err' durumlarında verilir
   function setPos(state, title, sub) {
     pos.dataset.state = state;
     posReadout.dataset.state = state;
     const text = {
-      idle: [`Terminal hazır · ${S.amount}`, 'Kartı ya da telefonu yaklaştırın'],
-      near: [`Bekleniyor · ${S.amount}`, 'Telefonu sabit tut'],
+      idle: [`Terminal hazır · ${money(S.amount)}`, 'Kartı ya da telefonu yaklaştırın'],
+      near: [`Bekleniyor · ${money(S.amount)}`, 'Telefonu sabit tut'],
       reading: ['Okunuyor', 'Telefonu çekmeyin'],
+      entry: [`Tutar giriliyor · ${money(Number(entry || 0))}`, '✓ onayla · ⌫ sil · ✕ vazgeç'],
     }[state] || [title, sub];
     $('.readout-text', posReadout).innerHTML = `<b>${text[0]}</b><small>${text[1]}</small>`;
     if (state === 'err') {
@@ -259,6 +264,13 @@
 
   function posRead() {
     if (posBusy) return false;
+    // Kasiyer tutarı yazıyorsa önce onaylaması gerekir; giriş bozulmasın diye ekran değişmez
+    if (entry !== null) {
+      beepWarn();
+      nudgeScreen();
+      toast('Önce POS\'ta tutarı ✓ ile onayla');
+      return false;
+    }
     // Ödeme yalnızca telefonda açık bir banka kartıyla yapılır
     const c = S.selected && card(S.selected);
     if (!c) {
@@ -273,14 +285,14 @@
     setPos('reading');
     [1, 2, 3, 4].forEach(n => setTimeout(() => posLeds(n), n * 170));
     setTimeout(() => {
-      setPos('ok', `Onaylandı · ${amount}`, `${c.title} •••• ${c.last4} · temassız`);
-      $('.pos-ok-amount', pos).textContent = amount;
-      $('.r-amount', pos).textContent = amount.replace('₺', '') + ' TL';
+      setPos('ok', `Onaylandı · ${money(amount)}`, `${c.title} •••• ${c.last4} · temassız`);
+      $('.pos-ok-amount', pos).textContent = money(amount);
+      $('.r-amount', pos).textContent = money(amount).slice(1) + ' TL';
       $('.r-card', pos).textContent = `${c.title} •••• ${c.last4}`;
       pos.classList.remove('tearing');
       pos.classList.add('printed');
       beepOk();
-      showPaid(c, amount);
+      showPaid(c, money(amount));
       mission('pay');
       setTimeout(posReset, 5200);
     }, 900);
@@ -290,9 +302,9 @@
   function posReset() {
     pos.classList.add('tearing');
     posLeds(0);
-    const next = AMOUNTS[(AMOUNTS.indexOf(S.amount) + 1) % AMOUNTS.length];
-    S.amount = next;
-    $('.pos-amount', pos).textContent = next;
+    // Sıradaki örnek tutar; kasiyerin girdiği tutar listede yoksa baştan başlar
+    S.amount = AMOUNTS[(AMOUNTS.indexOf(S.amount) + 1) % AMOUNTS.length];
+    $('.pos-amount', pos).textContent = money(S.amount);
     setTimeout(() => {
       pos.classList.remove('printed', 'tearing');
       posBusy = false;
@@ -300,6 +312,69 @@
       zones[1].armed = !zones[1].inside;
     }, 600);
   }
+
+  /* ───────────── POS tuş takımı ───────────── */
+  const keyClick = () => tone(1250, 0.035, 0, 'square', 0.03);
+  const keyConfirm = () => { tone(1500, 0.07, 0, 'sine', 0.07); tone(1900, 0.09, 0.08, 'sine', 0.07); };
+
+  function nudgeScreen() {
+    const scr = $('.pos-screen', pos);
+    scr.classList.remove('nudge'); void scr.offsetWidth; scr.classList.add('nudge');
+  }
+  function renderEntry() {
+    $('.pos-entry-amount', pos).textContent = money(Number(entry || 0));
+    setPos('entry');
+  }
+  function pressKey(key) {
+    const b = pos.querySelector(`.key[data-key="${key}"]`);
+    if (!b) return;
+    b.classList.add('pressed');
+    setTimeout(() => b.classList.remove('pressed'), 120);
+  }
+
+  function posKey(key) {
+    if (posBusy) return; // okuma ya da onay sürerken tuşlar kilitli
+    keyClick();
+    clearTimeout(posErrTimer);
+    if (/^\d+$/.test(key)) { // 0-9 ya da 00: haneler sağdan kayar (kuruş)
+      const next = ((entry ?? '') + key).replace(/^0+/, '');
+      if (next.length > MAX_DIGITS) { nudgeScreen(); return; }
+      entry = next;
+      renderEntry();
+      return;
+    }
+    if (key === 'del') {
+      if (entry === null) return;
+      entry = entry.slice(0, -1);
+      renderEntry();
+      return;
+    }
+    if (key === 'cancel') {
+      if (entry !== null || pos.dataset.state === 'err') { // girişten vazgeç: önceki tutar kalır
+        entry = null;
+        setPos(zones[1].inside ? 'near' : 'idle');
+        return;
+      }
+      entry = ''; // boşta ✕: yeni satış için tutarı sıfırdan gir
+      renderEntry();
+      return;
+    }
+    if (key === 'ok') {
+      if (entry === null) return;
+      const k = Number(entry || 0);
+      if (k <= 0) { beepWarn(); nudgeScreen(); return; }
+      S.amount = k;
+      entry = null;
+      $('.pos-amount', pos).textContent = money(k);
+      keyConfirm();
+      setPos(zones[1].inside ? 'near' : 'idle');
+      mission('amount');
+      // Telefon zaten POS'un önündeyse yeni tutarla okut
+      const z = zones[1];
+      if (z.inside && z.armed) z.schedule(500);
+    }
+  }
+  pos.querySelectorAll('.key').forEach(b => b.addEventListener('click', () => posKey(b.dataset.key)));
 
   /* ───────────── barkod okuyucu ───────────── */
   let scanTimer;
@@ -475,10 +550,21 @@
     }
   });
   phone.tabIndex = 0;
+  // Sahne ekrandayken: F telefonu çevirir; rakamlar, Backspace, Enter ve Esc POS tuşlarıdır
+  const POS_KEYS = { Backspace: 'del', Delete: 'del', Enter: 'ok', Escape: 'cancel' };
   document.addEventListener('keydown', e => {
-    if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !/input|textarea/i.test(e.target.tagName)) {
-      if (stageHost.getBoundingClientRect().top < innerHeight && stageHost.getBoundingClientRect().bottom > 0) flip();
-    }
+    if (e.ctrlKey || e.metaKey || e.altKey || /input|textarea|select/i.test(e.target.tagName)) return;
+    const r = stageHost.getBoundingClientRect();
+    if (r.top >= innerHeight || r.bottom <= 0) return;
+    if (e.key === 'f' || e.key === 'F') { flip(); return; }
+    if (document.querySelector('.nav.open')) return; // açık menüde Esc menüyü kapatır
+    // Odaktaki düğmede Enter o düğmeye aittir
+    if (e.key === 'Enter' && e.target instanceof Element && e.target.closest('button, a')) return;
+    const key = /^[0-9]$/.test(e.key) ? e.key : POS_KEYS[e.key];
+    if (!key) return;
+    e.preventDefault();
+    pressKey(key);
+    posKey(key);
   });
 
   /* ───────────── düğmeler ───────────── */
@@ -499,6 +585,7 @@
     layout = null; fit();
     layoutCards();
     clearTimeout(scanTimer); scannerIdle();
+    entry = null;
     if (!posBusy) setPos('idle');
   });
 

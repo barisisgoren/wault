@@ -51,6 +51,7 @@
         <li data-mission="tap"><span class="tick" aria-hidden="true"></span>Bir banka kartına dokun</li>
         <li data-mission="pay"><span class="tick" aria-hidden="true"></span>Kart açıkken telefonu POS'a yaklaştır</li>
         <li data-mission="scan"><span class="tick" aria-hidden="true"></span>Market kartını aç, barkodu okuyucuya tut</li>
+        <li data-mission="amount"><span class="tick" aria-hidden="true"></span>POS'ta tuşlarla yeni tutar gir, ✓ ile onayla</li>
       </ol>
     </div>
 
@@ -107,6 +108,12 @@
                 <strong class="pos-amount">₺248,50</strong>
                 <svg class="cl-big" viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#i-contactless"/></svg>
                 <span>Kartı ya da telefonu yaklaştırın</span>
+                <em class="ps-tip">Tutarı değiştirmek için rakamlara bas</em>
+              </div>
+              <div class="ps ps-entry">
+                <small>Tutar girin</small>
+                <strong class="pos-entry-amount">₺0,00</strong>
+                <span>✓ onayla · ⌫ sil · ✕ vazgeç</span>
               </div>
               <div class="ps ps-reading">
                 <div class="spinner" aria-hidden="true"></div>
@@ -123,8 +130,21 @@
                 <span class="ps-err-sub">Telefonda bir banka kartı açın</span>
               </div>
             </div>
-            <div class="pos-keys" aria-hidden="true">
-              <i>1</i><i>2</i><i>3</i><i>4</i><i>5</i><i>6</i><i>7</i><i>8</i><i>9</i><i class="k-x">✕</i><i>0</i><i class="k-ok">✓</i>
+            <div class="pos-keys" role="group" aria-label="POS tuş takımı">
+              <button type="button" class="key" data-key="1">1</button>
+              <button type="button" class="key" data-key="2">2</button>
+              <button type="button" class="key" data-key="3">3</button>
+              <button type="button" class="key" data-key="4">4</button>
+              <button type="button" class="key" data-key="5">5</button>
+              <button type="button" class="key" data-key="6">6</button>
+              <button type="button" class="key" data-key="7">7</button>
+              <button type="button" class="key" data-key="8">8</button>
+              <button type="button" class="key" data-key="9">9</button>
+              <button type="button" class="key" data-key="00">00</button>
+              <button type="button" class="key" data-key="0">0</button>
+              <button type="button" class="key k-del" data-key="del" aria-label="Sil">⌫</button>
+              <button type="button" class="key k-x" data-key="cancel" aria-label="İptal">✕</button>
+              <button type="button" class="key k-ok" data-key="ok" aria-label="Onayla">✓</button>
             </div>
           </div>
           <div class="zone" data-zone="pos"></div>
