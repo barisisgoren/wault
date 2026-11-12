@@ -331,7 +331,8 @@ h1, h2, h3 { margin: 0; letter-spacing: -0.02em; }
   position: relative; width: 100%; height: 100%; border-radius: 34px; overflow: hidden;
   background: #F3F4F6; color: #17191C; font-size: 12px; isolation: isolate;
 }
-.statusbar { height: 30px; display: flex; align-items: center; justify-content: space-between; padding: 0 22px 0 24px; font-weight: 600; font-size: 11px; }
+/* Durum çubuğu (saat, dinamik ada) her katmanın üstünde: Ödendi ekranı da onu örtmez */
+.statusbar { position: relative; z-index: 50; height: 30px; display: flex; align-items: center; justify-content: space-between; padding: 0 22px 0 24px; font-weight: 600; font-size: 11px; }
 .island { position: absolute; left: 50%; top: 8px; width: 64px; height: 18px; margin-left: -32px; border-radius: 10px; background: #0c0d0f; }
 .sb-icons { display: flex; gap: 5px; align-items: center; }
 .sig { width: 14px; height: 8px; background: linear-gradient(90deg, #17191C 0 2px, transparent 2px 4px, #17191C 4px 6px, transparent 6px 8px, #17191C 8px 10px, transparent 10px 12px, #17191C 12px 14px); clip-path: polygon(0 100%, 100% 0, 100% 100%); }
