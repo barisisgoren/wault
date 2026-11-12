@@ -19,6 +19,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.widthIn
+import app.wault.design.ContentMaxWidth
+import app.wault.design.horizontalSafePadding
 import app.wault.MainActivity
 import app.wault.data.CardKind
 import app.wault.data.WaultCard
@@ -114,11 +118,11 @@ fun WaultApp(activity: MainActivity) {
             LaunchedEffect(Unit) { container.prefs.update { it.copy(onboarded = true) } }
         } else {
             Box(Modifier.fillMaxSize().background(Wault.colors.bg)) {
-                Onboarding(activity, env) { picked ->
+                Readable { Onboarding(activity, env) { picked ->
                     // upsert başa ekler; sırayı korumak için tersten ekle
                     picked.asReversed().forEach { container.store.upsert(it) }
                     container.prefs.update { it.copy(onboarded = true) }
-                }
+                } }
             }
             return
         }
@@ -154,27 +158,33 @@ fun WaultApp(activity: MainActivity) {
                     onSettings = { screen = Screen.Settings },
                     onEdit = { screen = Screen.Editor(it, isNew = false) },
                 )
-                Screen.Reorder -> ReorderScreen(
-                    cards = cards,
-                    onDone = { ids -> container.store.reorder(ids); screen = Screen.Stack },
-                    onOpen = { screen = Screen.Editor(it, isNew = false) },
-                )
-                Screen.Settings -> SettingsScreen(
-                    activity, env,
-                    onBack = { screen = Screen.Stack },
-                    onReorder = { screen = Screen.Reorder },
-                    onPreviewOnboarding = { screen = Screen.OnboardingPreview },
-                )
-                Screen.OnboardingPreview -> Box(Modifier.fillMaxSize().background(Wault.colors.bg)) {
-                    Onboarding(activity, env) { screen = Screen.Settings }
+                Screen.Reorder -> Readable {
+                    ReorderScreen(
+                        cards = cards,
+                        onDone = { ids -> container.store.reorder(ids); screen = Screen.Stack },
+                        onOpen = { screen = Screen.Editor(it, isNew = false) },
+                    )
                 }
-                Screen.NfcCopy -> NfcCopyScreen(
-                    activity = activity,
-                    env = env,
-                    onCancel = { screen = Screen.Stack },
-                    onCopied = { screen = Screen.Editor(it, isNew = true) },
-                    onAddPayment = { screen = Screen.Editor(WaultCard(kind = CardKind.PAYMENT, title = "", artId = CardArts.defaultFor(CardKind.PAYMENT)), isNew = true) },
-                )
+                Screen.Settings -> Readable {
+                    SettingsScreen(
+                        activity, env,
+                        onBack = { screen = Screen.Stack },
+                        onReorder = { screen = Screen.Reorder },
+                        onPreviewOnboarding = { screen = Screen.OnboardingPreview },
+                    )
+                }
+                Screen.OnboardingPreview -> Box(Modifier.fillMaxSize().background(Wault.colors.bg)) {
+                    Readable { Onboarding(activity, env) { screen = Screen.Settings } }
+                }
+                Screen.NfcCopy -> Readable {
+                    NfcCopyScreen(
+                        activity = activity,
+                        env = env,
+                        onCancel = { screen = Screen.Stack },
+                        onCopied = { screen = Screen.Editor(it, isNew = true) },
+                        onAddPayment = { screen = Screen.Editor(WaultCard(kind = CardKind.PAYMENT, title = "", artId = CardArts.defaultFor(CardKind.PAYMENT)), isNew = true) },
+                    )
+                }
                 is Screen.Editor -> CardEditor(
                     activity = activity,
                     initial = s.card,
@@ -217,5 +227,16 @@ fun WaultApp(activity: MainActivity) {
         if (activity.locked.value) {
             LockScreen(activity)
         }
+    }
+}
+
+/**
+ * Liste ve form ekranları dikey telefon için çizildi. Yatayda (ya da geniş ekranda) satırlar ekran boyu
+ * uzamasın diye içerik ortada okunabilir bir genişlikte durur; kamera çentiğinin altına da girmez.
+ */
+@Composable
+private fun Readable(content: @Composable () -> Unit) {
+    Box(Modifier.fillMaxSize().horizontalSafePadding(), contentAlignment = Alignment.TopCenter) {
+        Box(Modifier.widthIn(max = ContentMaxWidth).fillMaxSize()) { content() }
     }
 }

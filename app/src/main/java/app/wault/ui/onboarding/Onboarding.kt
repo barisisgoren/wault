@@ -1,5 +1,10 @@
 package app.wault.ui.onboarding
 
+import app.wault.design.cardMaxWidth
+import app.wault.design.isShortWindow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
+
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import app.wault.ui.pay.PaidSummary
@@ -175,7 +180,8 @@ private fun StackPreview(cards: List<WaultCard>) {
     if (shown.isEmpty()) return
     val peek = 54.dp
     BoxWithConstraints(Modifier.fillMaxWidth().animateContentSize(spring(dampingRatio = 0.85f, stiffness = 380f))) {
-        val cardW = maxWidth * 0.8f
+        // Yatayda kartlar ekranın yarısından uzun olmasın
+        val cardW = minOf(maxWidth * 0.8f, cardMaxWidth(0.5f))
         val cardH = cardW / CARD_RATIO
         Box(Modifier.align(Alignment.TopCenter).width(cardW).height(cardH + peek * (shown.size - 1))) {
             shown.forEachIndexed { i, card ->
@@ -209,14 +215,10 @@ private fun AskNotifications(activity: MainActivity, sample: WaultCard?, onDone:
             text.animateTo(1f, spring(dampingRatio = 0.8f, stiffness = 400f))
         }
     }
-    Column(
-        Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Spacer(Modifier.weight(0.8f))
-        // Ödeme yapılınca ne göreceğinin küçük bir örneği
+    // Ödeme yapılınca ne göreceğinin küçük bir örneği
+    val preview = @Composable { modifier: Modifier ->
         Box(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(c.surface).padding(vertical = 28.dp),
+            modifier.clip(RoundedCornerShape(24.dp)).background(c.surface).padding(vertical = 28.dp),
             contentAlignment = Alignment.Center,
         ) {
             PaidSummary(
@@ -224,14 +226,42 @@ private fun AskNotifications(activity: MainActivity, sample: WaultCard?, onDone:
                 badgeSize = 84.dp, amountStyle = WaultType.largeTitle,
             )
         }
+    }
+    val title = "Ödeme onayını Wault göstersin"
+    val body = "Ödeme yapınca bankanın gönderdiği bildirimi Wault okur ve tutarı kendi ekranında gösterir. " +
+        "Wault sadece bağladığın bankaların bildirimlerine bakar; hiçbir şeyi telefondan dışarı göndermez."
+
+    // Yatayda alt alta sığmaz: örnek solda, açıklama ve düğmeler sağda
+    if (isShortWindow()) {
+        Row(
+            Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+        ) {
+            preview(Modifier.weight(1f))
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(title, style = WaultType.title, color = c.label, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(10.dp))
+                Text(body, style = WaultType.callout, color = c.secondary, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(20.dp))
+                PrimaryButton("Bildirim erişimi ver", { PaymentNotificationListener.openAccessSettings(activity) }, Modifier.fillMaxWidth())
+                Spacer(Modifier.height(4.dp))
+                BarButton("Şimdi değil", onDone)
+            }
+        }
+        return
+    }
+
+    Column(
+        Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Spacer(Modifier.weight(0.8f))
+        preview(Modifier.fillMaxWidth())
         Spacer(Modifier.height(32.dp))
-        Text("Ödeme onayını Wault göstersin", style = WaultType.title, color = c.label, textAlign = TextAlign.Center)
+        Text(title, style = WaultType.title, color = c.label, textAlign = TextAlign.Center)
         Spacer(Modifier.height(10.dp))
-        Text(
-            "Ödeme yapınca bankanın gönderdiği bildirimi Wault okur ve tutarı kendi ekranında gösterir. " +
-                "Wault sadece bağladığın bankaların bildirimlerine bakar; hiçbir şeyi telefondan dışarı göndermez.",
-            style = WaultType.callout, color = c.secondary, textAlign = TextAlign.Center,
-        )
+        Text(body, style = WaultType.callout, color = c.secondary, textAlign = TextAlign.Center)
         Spacer(Modifier.weight(1f))
         PrimaryButton("Bildirim erişimi ver", { PaymentNotificationListener.openAccessSettings(activity) }, Modifier.fillMaxWidth())
         Spacer(Modifier.height(4.dp))

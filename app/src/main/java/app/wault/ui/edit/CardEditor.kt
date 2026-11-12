@@ -1,5 +1,11 @@
 package app.wault.ui.edit
 
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
+import app.wault.design.ContentMaxWidth
+import app.wault.design.cardMaxWidth
+import app.wault.design.horizontalSafePadding
+
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -111,17 +117,20 @@ fun CardEditor(
     val save = { if (valid) onSave(draft.copy(title = draft.title.trim())) else tried = true }
 
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+        Column(Modifier.fillMaxSize().statusBarsPadding().imePadding().horizontalSafePadding()) {
             NavBar(
                 if (isNew) draft.kind.label() else "Kartı düzenle",
                 leading = { BarButton("Vazgeç", onCancel) },
                 trailing = { BarButton(if (isNew) "Ekle" else "Kaydet", save, bold = true) },
             )
             Column(
-                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)
+                // Yatayda form ortada okunabilir genişlikte durur
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                    .wrapContentWidth().widthIn(max = ContentMaxWidth).padding(horizontal = 16.dp)
             ) {
                 Spacer(Modifier.height(8.dp))
-                Box(Modifier.padding(horizontal = 12.dp)) {
+                // Önizleme kartı yatayda ekranın yarısından uzun olmasın
+                Box(Modifier.align(Alignment.CenterHorizontally).widthIn(max = cardMaxWidth()).padding(horizontal = 12.dp)) {
                     CardSurface(draft.copy(title = draft.title.ifBlank { "Kart adı" }), isDefault = true, elevation = 14.dp)
                 }
                 Spacer(Modifier.height(28.dp))

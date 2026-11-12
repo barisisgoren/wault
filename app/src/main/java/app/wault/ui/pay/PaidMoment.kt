@@ -1,5 +1,10 @@
 package app.wault.ui.pay
 
+import androidx.compose.foundation.layout.widthIn
+import app.wault.design.ContentMaxWidth
+import app.wault.design.isShortWindow
+import app.wault.design.horizontalSafePadding
+
 import android.os.Build
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.core.Animatable
@@ -169,9 +174,17 @@ fun PaidMoment(event: PaidEvent, card: WaultCard?, onDone: () -> Unit) {
             .clickable(remember { MutableInteractionSource() }, null, onClick = onDone)
             .statusBarsPadding()
             .navigationBarsPadding()
+            .horizontalSafePadding()
             .padding(horizontal = 24.dp),
     ) {
-        PaidSummary(ring.value, check.value, text.value, event.amount, card, Modifier.align(Alignment.Center))
-        PrimaryButton("Tamam", onDone, Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(bottom = 16.dp))
+        // Yatayda dikey alan kıt: rozet ve tutar küçülür, özet düğmenin üstünde ortalanır
+        val short = isShortWindow()
+        PaidSummary(
+            ring.value, check.value, text.value, event.amount, card,
+            Modifier.align(Alignment.Center).padding(bottom = if (short) 68.dp else 0.dp),
+            badgeSize = if (short) 72.dp else 112.dp,
+            amountStyle = if (short) WaultType.largeTitle else WaultType.largeTitle.copy(fontSize = 46.sp, lineHeight = 52.sp),
+        )
+        PrimaryButton("Tamam", onDone, Modifier.align(Alignment.BottomCenter).widthIn(max = ContentMaxWidth).fillMaxWidth().padding(bottom = 16.dp))
     }
 }

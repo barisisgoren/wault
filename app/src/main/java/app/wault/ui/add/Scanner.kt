@@ -1,5 +1,10 @@
 package app.wault.ui.add
 
+import androidx.compose.foundation.layout.widthIn
+import app.wault.design.ContentMaxWidth
+import app.wault.design.cardMaxWidth
+import app.wault.design.horizontalSafePadding
+
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -89,13 +94,16 @@ fun ScannerOverlay(onResult: (CodeFormat, String) -> Unit, onCancel: () -> Unit)
 
     Box(Modifier.fillMaxSize().background(Color(0xFF0F1626))) {
         if (granted) CameraPreview(onResult)
-        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().horizontalSafePadding()) {
             NavBar("", trailing = { BarButton("Vazgeç", onCancel, bold = true) })
             Spacer(Modifier.weight(1f))
             if (granted) {
                 Box(
                     Modifier
+                        .align(Alignment.CenterHorizontally)
                         .padding(horizontal = 32.dp)
+                        // Yatayda çerçeve ekrandan taşmasın
+                        .widthIn(max = cardMaxWidth(0.45f))
                         .fillMaxWidth()
                         .aspectRatio(1.4f)
                         .border(2.dp, Color.White.copy(alpha = 0.9f), RoundedCornerShape(14.dp))
@@ -104,7 +112,7 @@ fun ScannerOverlay(onResult: (CodeFormat, String) -> Unit, onCancel: () -> Unit)
                 Text("Kodu çerçevenin içine al", style = WaultType.headline, color = Color.White,
                     modifier = Modifier.align(Alignment.CenterHorizontally))
             } else if (denied) {
-                Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.align(Alignment.CenterHorizontally).widthIn(max = ContentMaxWidth).padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Kamera izni kapalı.", style = WaultType.title, color = Color.White)
                     Text("Kodu taramak için kamera izni ver ya da kodu görselden seç.", style = WaultType.subhead, color = Color.White.copy(alpha = 0.8f))
                     PrimaryButton("İzin ver", { launcher.launch(Manifest.permission.CAMERA) }, Modifier.fillMaxWidth())

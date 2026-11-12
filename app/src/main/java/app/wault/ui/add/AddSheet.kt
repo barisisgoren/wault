@@ -1,5 +1,13 @@
 package app.wault.ui.add
 
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import app.wault.design.ContentMaxWidth
+
 import app.wault.design.GlyphIcon
 import app.wault.design.CardArts
 import app.wault.design.CardArtSwatch
@@ -74,12 +82,16 @@ fun AddSheet(onDismiss: () -> Unit, onPick: (CardKind) -> Unit) {
         Column(
             Modifier
                 .align(Alignment.BottomCenter)
+                // Yatayda sayfa durum çubuğunun altına girmez, ortada durur; sığmazsa kayar
+                .windowInsetsPadding(WindowInsets.statusBars)
                 .graphicsLayer { translationY = (1f - rise.value) * size.height }
+                .widthIn(max = ContentMaxWidth)
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
                 .background(c.bg)
                 .clickable(remember { MutableInteractionSource() }, null) { }
                 .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .padding(top = 8.dp, bottom = 16.dp)
         ) {

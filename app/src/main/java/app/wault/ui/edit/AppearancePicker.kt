@@ -1,5 +1,11 @@
 package app.wault.ui.edit
 
+import androidx.compose.foundation.layout.widthIn
+import app.wault.design.ContentMaxWidth
+import app.wault.design.cardMaxWidth
+import app.wault.design.isShortWindow
+import app.wault.design.horizontalSafePadding
+
 import app.wault.design.rememberCardArt
 import app.wault.design.ChoiceRow
 import app.wault.ui.common.withCustomColor
@@ -145,10 +151,11 @@ private fun PhotoCrop(bitmap: Bitmap, onCancel: () -> Unit, onConfirm: (Bitmap) 
     var saving by remember { mutableStateOf(false) }
     val c=Wault.colors
     Dialog(onDismissRequest=onCancel, properties=DialogProperties(usePlatformDefaultWidth=false)) {
-        Column(Modifier.fillMaxSize().background(c.bg).systemBarsPadding().padding(20.dp), verticalArrangement=Arrangement.spacedBy(24.dp)) {
+        Column(Modifier.fillMaxSize().background(c.bg).systemBarsPadding().horizontalSafePadding().padding(20.dp), verticalArrangement=Arrangement.spacedBy(if (isShortWindow()) 10.dp else 24.dp)) {
             NavBar("Fotoğrafı ayarla", leading={ BarButton("Vazgeç",onCancel) })
             Spacer(Modifier.weight(1f))
-            androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().aspectRatio(CARD_RATIO).clip(RoundedCornerShape(14.dp)).background(c.surfaceAlt)
+            // Yatayda kırpma alanı ekrandan taşmasın
+            androidx.compose.foundation.Canvas(Modifier.align(Alignment.CenterHorizontally).widthIn(max=cardMaxWidth(0.5f)).fillMaxWidth().aspectRatio(CARD_RATIO).clip(RoundedCornerShape(14.dp)).background(c.surfaceAlt)
                 .onSizeChanged { size=it }.pointerInput(bitmap) {
                     detectTransformGestures { _, pan, scale, _ ->
                         zoom=(zoom*scale).coerceIn(1f,5f)
@@ -162,7 +169,7 @@ private fun PhotoCrop(bitmap: Bitmap, onCancel: () -> Unit, onConfirm: (Bitmap) 
                 val w=bitmap.width*base; val h=bitmap.height*base
                 drawImage(bitmap.asImageBitmap(), dstOffset=androidx.compose.ui.unit.IntOffset(((this.size.width-w)/2+offset.x).toInt(),((this.size.height-h)/2+offset.y).toInt()),dstSize=IntSize(w.toInt(),h.toInt()))
             }
-            Text("Yakınlaştırmak için iki parmağını kullan. Kadrajı değiştirmek için fotoğrafı kaydır.",style=WaultType.body,color=c.secondary)
+            Text("Yakınlaştırmak için iki parmağını kullan. Kadrajı değiştirmek için fotoğrafı kaydır.",style=WaultType.body,color=c.secondary,modifier=Modifier.widthIn(max=ContentMaxWidth))
             Spacer(Modifier.weight(1f))
             PrimaryButton(if(saving) "Kaydediliyor…" else "Bu görünümü kullan", {
                 if(!saving && size.width>0) {

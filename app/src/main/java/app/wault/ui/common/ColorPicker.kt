@@ -1,5 +1,13 @@
 package app.wault.ui.common
 
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import app.wault.design.ContentMaxWidth
+
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextRange
 import androidx.compose.foundation.Canvas
@@ -223,12 +231,16 @@ fun ColorSheetContent(current: Color?, onPick: (Color) -> Unit, onDone: () -> Un
     val c = Wault.colors
     Column(
         modifier
+            // Yatayda sayfa ortada okunabilir genişlikte, ekran yetmezse kayar
+            .windowInsetsPadding(WindowInsets.statusBars)
+            .widthIn(max = ContentMaxWidth)
             .fillMaxWidth()
             .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
             .background(c.bg)
             .clickable(remember { MutableInteractionSource() }, null) { } // sayfa içine dokunmak kapatmasın
             .navigationBarsPadding()
             .imePadding()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp)
             .padding(top = 8.dp, bottom = 16.dp),
     ) {

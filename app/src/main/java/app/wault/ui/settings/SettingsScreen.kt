@@ -1,5 +1,9 @@
 package app.wault.ui.settings
 
+import androidx.compose.foundation.layout.widthIn
+import app.wault.design.ContentMaxWidth
+import app.wault.design.horizontalSafePadding
+
 import app.wault.ui.common.ColorDot
 import app.wault.design.Tilt
 import app.wault.design.ChoiceRow
@@ -280,7 +284,7 @@ fun LockScreen(activity: MainActivity) {
     LaunchedEffect(Unit) { unlock() }
     Box(
         Modifier.fillMaxSize().background(c.bg).clickable(enabled = false) { }
-            .statusBarsPadding().navigationBarsPadding().padding(24.dp)
+            .statusBarsPadding().navigationBarsPadding().horizontalSafePadding().padding(24.dp)
     ) {
         Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
             IconTile(Glyph.LOCK, c.label, Modifier.size(64.dp))
@@ -293,6 +297,6 @@ fun LockScreen(activity: MainActivity) {
                 Text(it, style = WaultType.footnote, color = c.danger, textAlign = TextAlign.Center)
             }
         }
-        PrimaryButton("Kilidi aç", { unlock() }, Modifier.align(Alignment.BottomCenter).fillMaxWidth())
+        PrimaryButton("Kilidi aç", { unlock() }, Modifier.align(Alignment.BottomCenter).widthIn(max = ContentMaxWidth).fillMaxWidth())
     }
 }

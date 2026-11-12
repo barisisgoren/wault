@@ -94,6 +94,9 @@ import app.wault.design.CardSurface
 import app.wault.design.CircleButton
 import app.wault.design.Glyph
 import app.wault.design.LargeTitleBar
+import app.wault.design.horizontalSafePadding
+import app.wault.design.isShortWindow
+import androidx.compose.foundation.layout.widthIn
 import app.wault.design.PrimaryButton
 import app.wault.design.Wault
 import app.wault.design.WaultType
@@ -255,7 +258,8 @@ fun StackScreen(
                 }
             }
     ) {
-    Column(Modifier.fillMaxSize().statusBarsPadding()) {
+    // Yatayda kamera çentiği yanda kalır: içerik altına girmesin (ışık zemini yine kenardan kenara)
+    Column(Modifier.fillMaxSize().statusBarsPadding().horizontalSafePadding()) {
         Box(Modifier.fillMaxWidth().height(60.dp)) {
             Crossfade(selected != null, animationSpec = tween(if (reduced) 0 else 180), label = "bar") { isSelected ->
                 if (!isSelected) {
@@ -320,11 +324,20 @@ private fun Stage(
 
     BoxWithConstraints(Modifier.fillMaxSize().clipToBounds()) {
         val viewportH = constraints.maxHeight.toFloat()
+        val viewportW = constraints.maxWidth.toFloat()
         val gutter = with(density) { Gutter.toPx() }
-        val cardW = constraints.maxWidth - 2 * gutter
-        val cardH = cardW / CARD_RATIO
         val topPad = with(density) { TopPad.toPx() }
         val navInset = WindowInsets.navigationBars.getBottom(density).toFloat()
+        // Yatay (geniş ve alçak) pencere: kart genişliği ekrandan değil yükseklikten gelir, yoksa kart
+        // ekrandan büyük olur. Seçili kart sola, detayı sağa yerleşir; yığın ortada durur.
+        val wide = viewportW > viewportH * 1.3f
+        val cardW = if (!wide) viewportW - 2 * gutter else min(
+            (viewportW - 3 * gutter) / 2f,
+            (viewportH - topPad - navInset - with(density) { 12.dp.toPx() }) * CARD_RATIO,
+        )
+        val cardH = cardW / CARD_RATIO
+        val cardWDp = with(density) { cardW.toDp() }
+        val stackX = if (wide) (viewportW - cardW) / 2f else gutter
         val dockSpace = navInset + with(density) { (DockHeight + DockGap * 2).toPx() }
         val n = cards.size
         val minPeek = with(density) { CardPeek.toPx() }
@@ -345,7 +358,9 @@ private fun Stage(
         val sliver = with(density) { PeekSliver.toPx() }
         val step = with(density) { PeekStep.toPx() }
         val bottomBase = viewportH - navInset - with(density) { 4.dp.toPx() } - sliver - step * (peeks - 1).coerceAtLeast(0)
-        val detailTop = topPad + cardH + with(density) { 22.dp.toPx() }
+        val detailTop = if (wide) topPad else topPad + cardH + with(density) { 22.dp.toPx() }
+        val detailX = if (wide) gutter * 2 + cardW else gutter
+        val detailWidth = with(density) { (viewportW - detailX - gutter).toDp() }
         val detailHeight = with(density) { (viewportH - navInset - detailTop - 12.dp.toPx()).coerceAtLeast(160.dp.toPx()).toDp() }
 
         LaunchedEffect(selectedId) { st.flipJob?.cancel(); st.flipAngle = 0f; st.revealed = false }
@@ -514,6 +529,9 @@ private fun Stage(
                         return collapsed + (target - collapsed) * p
                     }
 
+                    // Yatayda seçilen kart ortadaki yığından sol sütuna kayar
+                    fun xNow(): Float = if (!wide || !isAnchor) stackX else stackX + (gutter - stackX) * min(progress(), 1f)
+
                     val tapLabel = if (selectedId == null) "Kartı aç" else if (isSel) "Kartı çevir" else "Kartları göster"
                     // Sürüklerken kaldırılan kart: ölçek ve gölge yumuşakça artar, bırakınca yumuşakça iner
                     val lift by animateFloatAsState(if (isDragged) 1f else 0f, spring(dampingRatio = 0.75f, stiffness = 260f), label = "lift")
@@ -528,8 +546,8 @@ private fun Stage(
                     Box(
                         Modifier
                             .zIndex(if (isAnchor) 1000f else if (raised) 900f else i.toFloat())
-                            .padding(horizontal = Gutter)
-                            .offset { IntOffset(0, yNow().roundToInt()) }
+                            .offset { IntOffset(xNow().roundToInt(), yNow().roundToInt()) }
+                            .width(cardWDp)
                             // Dönmeyen katmanda dinlenir: kart dönerken yerel koordinatlar aynalanmasın
                             .pointerInput(isSel, cardW) {
                                 if (!isSel) return@pointerInput
@@ -671,13 +689,13 @@ private fun Stage(
                     Box(
                         Modifier
                             .zIndex(999f)
-                            .offset { IntOffset(0, detailTop.roundToInt()) }
+                            .offset { IntOffset(detailX.roundToInt(), detailTop.roundToInt()) }
                             .graphicsLayer {
                                 val a = ((st.sel - 0.7f) / 0.3f).coerceIn(0f, 1f)
                                 alpha = a
                                 translationY = (1f - a) * 28.dp.toPx()
                             }
-                            .padding(horizontal = Gutter)
+                            .width(detailWidth)
                             .height(detailHeight)
                     ) {
                         CardDetail(activity, shown, env, onEdit = { onEdit(shown) }, onChange = { activity.app.container.store.upsert(it) })
@@ -696,6 +714,8 @@ private fun Stage(
                     modifier = Modifier
                         .padding(horizontal = Gutter)
                         .padding(bottom = with(density) { navInset.toDp() } + DockGap)
+                        // Yatayda yığınla aynı genişlikte, ortada
+                        .then(if (wide) Modifier.width(cardWDp) else Modifier)
                         .graphicsLayer { alpha = (1f - st.sel * 1.8f).coerceIn(0f, 1f) },
                 )
             }
@@ -710,8 +730,7 @@ private fun EmptyWallet(onAdd: () -> Unit) {
     val ghosts = remember {
         listOf("silver", "ocean", "sunset").map { WaultCard(kind = CardKind.SHOWCASE, title = "", artId = it) }
     }
-    Column(Modifier.fillMaxSize().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Spacer(Modifier.weight(0.6f))
+    val ghostStack = @Composable {
         Box(Modifier.width(260.dp).height(220.dp)) {
             ghosts.forEachIndexed { i, card ->
                 Box(Modifier.offset(y = (i * 44).dp).graphicsLayer { alpha = 0.35f + i * 0.25f }) {
@@ -719,15 +738,34 @@ private fun EmptyWallet(onAdd: () -> Unit) {
                 }
             }
         }
-        Spacer(Modifier.height(36.dp))
-        Text("Kartların burada duracak", style = WaultType.title, color = c.label, textAlign = TextAlign.Center)
+    }
+    val message = @Composable { align: TextAlign ->
+        Text("Kartların burada duracak", style = WaultType.title, color = c.label, textAlign = align)
         Spacer(Modifier.height(8.dp))
         Text(
             "Ödeme kartlarını, sadakat kartlarını, kodlarını ve NFC kartlarını tek yerde topla.",
-            style = WaultType.subhead, color = c.secondary, textAlign = TextAlign.Center,
+            style = WaultType.subhead, color = c.secondary, textAlign = align,
         )
         Spacer(Modifier.height(28.dp))
         PrimaryButton("Kart ekle", onAdd, Modifier.fillMaxWidth())
+    }
+    // Yatayda dikey alan yetmez: kartlar solda, yazı ve düğme sağda
+    if (isShortWindow()) {
+        Row(
+            Modifier.fillMaxSize().padding(horizontal = 24.dp).padding(bottom = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(40.dp, Alignment.CenterHorizontally),
+        ) {
+            ghostStack()
+            Column(Modifier.widthIn(max = 360.dp)) { message(TextAlign.Start) }
+        }
+        return
+    }
+    Column(Modifier.fillMaxSize().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Spacer(Modifier.weight(0.6f))
+        ghostStack()
+        Spacer(Modifier.height(36.dp))
+        message(TextAlign.Center)
         Spacer(Modifier.weight(1f))
     }
 }
